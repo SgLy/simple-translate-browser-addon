@@ -1,0 +1,62 @@
+{
+  "name": "firefox-translate-plugin",
+  "version": "1.0.0",
+  "description": "Translate selected page elements",
+  "main": "index.js",
+  "author": {
+    "name": "SgLy",
+    "email": "775150558@qq.com"
+  },
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "cross-env NODE_ENV=development ts-node script/dev.ts",
+    "build": "cross-env NODE_ENV=production webpack --config ./script/prod.config.ts --progress",
+    "serve": "npm run dev"
+  },
+  "keywords": [],
+  "packageManager": "pnpm@10.6.1",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.26.9",
+    "@babel/eslint-parser": "^7.26.8",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-typescript": "^7.26.0",
+    "@eslint/js": "^9.22.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "^22.13.10",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
+    "babel-loader": "^10.0.0",
+    "clean-webpack-plugin": "^4.0.0",
+    "copy-webpack-plugin": "^13.0.0",
+    "cross-env": "^7.0.3",
+    "css-loader": "^7.1.2",
+    "csstype": "^3.1.3",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-import-resolver-typescript": "^3.8.3",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "file-loader": "^6.2.0",
+    "fork-ts-checker-webpack-plugin": "^9.0.2",
+    "globals": "^16.0.0",
+    "html-inline-script-webpack-plugin": "^3.2.1",
+    "html-webpack-plugin": "^5.6.3",
+    "prettier": "^3.5.3",
+    "style-loader": "^4.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0",
+    "typescript-plugin-css-modules": "^5.1.0",
+    "url-loader": "^4.1.1",
+    "web-ext": "^8.5.0",
+    "webpack": "^5.98.0",
+    "webpack-bundle-analyzer": "^4.10.2",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0",
+    "webpack-merge": "^6.0.1"
+  },
+  "dependencies": {
+    "@types/firefox-webext-browser": "^120.0.4"
+  }
+}
