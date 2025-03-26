@@ -1,15 +1,13 @@
-let translationMode = false;
-let hoverElement = null;
+let hoverElement: HTMLElement | null = null;
 
 // Listen for mode toggle
 browser.runtime.onMessage.addListener(message => {
   if (message.action === 'toggleTranslation') {
-    translationMode = message.enabled;
     toggleCursorStyle(message.enabled);
   }
 });
 
-function toggleCursorStyle(enabled) {
+function toggleCursorStyle(enabled: boolean) {
   if (enabled) {
     document.body.style.cursor = 'crosshair';
     document.addEventListener('click', handleElementClick, true);
@@ -25,8 +23,9 @@ function toggleCursorStyle(enabled) {
   }
 }
 
-function handleMouseMove(e) {
+function handleMouseMove(e: MouseEvent) {
   const element = document.elementFromPoint(e.clientX, e.clientY);
+  if (!(element instanceof HTMLElement)) return;
   if (element && element !== hoverElement) {
     if (hoverElement) {
       hoverElement.style.outline = '';
@@ -36,53 +35,48 @@ function handleMouseMove(e) {
   }
 }
 
-function handleElementClick(e) {
+const elementMap = new Map<string, HTMLElement>();
+
+async function handleElementClick(e: MouseEvent) {
+  console.log(e.target, e.target instanceof HTMLElement);
+  if (!(e.target instanceof HTMLElement)) return;
   e.preventDefault();
   e.stopPropagation();
 
+  console.log('sending message toggleTranslation');
+  browser.runtime.sendMessage({ action: 'toggleTranslation', enabled: false });
+
   const text = getTextFromElement(e.target);
-  if (text) {
-    const rect = e.target.getBoundingClientRect();
-    browser.runtime.sendMessage({
+  if (text !== '') {
+    const elementId = Math.random().toFixed(10).slice(2);
+    elementMap.set(elementId, e.target);
+    await browser.runtime.sendMessage({
       action: 'translateText',
       text: text,
-      position: {
-        x: rect.left + window.scrollX,
-        y: rect.top + window.scrollY,
-      },
+      elementId,
     });
   }
-
-  // Disable translation mode after selection
-  browser.runtime.sendMessage({ action: 'toggleTranslation', enabled: false });
 }
 
-function getTextFromElement(element) {
-  return element.textContent.trim().replace(/\s+/g, ' ');
+function getTextFromElement(element: Element) {
+  return element.innerHTML;
 }
 
 // Handle translation display
 browser.runtime.onMessage.addListener(message => {
   if (message.action === 'showTranslation') {
-    showTranslation(message.translation, message.position);
+    showTranslation(message.translation, message.elementId);
+  } else if (message.action === 'alert') {
+    alert(message.text);
   }
 });
 
-function showTranslation(text, position) {
-  const div = document.createElement('div');
-  div.style.position = 'absolute';
-  div.style.backgroundColor = '#ffff88';
-  div.style.border = '1px solid #cccc00';
-  div.style.padding = '8px';
-  div.style.borderRadius = '4px';
-  div.style.boxShadow = '2px 2px 5px rgba(0,0,0,0.2)';
-  div.style.zIndex = '2147483647';
-  div.textContent = text;
-
-  div.style.left = `${position.x}px`;
-  div.style.top = `${position.y - 30}px`;
-
-  document.body.appendChild(div);
-
-  setTimeout(() => div.remove(), 5000);
+function showTranslation(text: string, elementId: string) {
+  const element = elementMap.get(elementId);
+  elementMap.delete(elementId);
+  console.log(element, element?.parentNode, element?.nextSibling);
+  if (!element || !element.parentNode) return;
+  const newElement = element.cloneNode() as HTMLElement;
+  newElement.innerHTML = text;
+  element.parentNode.insertBefore(newElement, element.nextSibling);
 }
