@@ -1,27 +1,12 @@
+import { Action, generateId, onMessage, sendToRuntime } from './utils';
+
 let hoverElement: HTMLElement | null = null;
 
-// Listen for mode toggle
-browser.runtime.onMessage.addListener(message => {
-  if (message.action === 'toggleTranslation') {
-    toggleCursorStyle(message.enabled);
-  }
+onMessage(Action.EnableElementPickInPage, () => {
+  document.body.style.cursor = 'crosshair';
+  document.addEventListener('click', handleElementClick, true);
+  document.addEventListener('mousemove', handleMouseMove);
 });
-
-function toggleCursorStyle(enabled: boolean) {
-  if (enabled) {
-    document.body.style.cursor = 'crosshair';
-    document.addEventListener('click', handleElementClick, true);
-    document.addEventListener('mousemove', handleMouseMove);
-  } else {
-    document.body.style.cursor = 'default';
-    document.removeEventListener('click', handleElementClick, true);
-    document.removeEventListener('mousemove', handleMouseMove);
-    if (hoverElement) {
-      hoverElement.style.outline = '';
-      hoverElement = null;
-    }
-  }
-}
 
 function handleMouseMove(e: MouseEvent) {
   const element = document.elementFromPoint(e.clientX, e.clientY);
@@ -38,45 +23,43 @@ function handleMouseMove(e: MouseEvent) {
 const elementMap = new Map<string, HTMLElement>();
 
 async function handleElementClick(e: MouseEvent) {
-  console.log(e.target, e.target instanceof HTMLElement);
   if (!(e.target instanceof HTMLElement)) return;
   e.preventDefault();
   e.stopPropagation();
 
-  console.log('sending message toggleTranslation');
-  browser.runtime.sendMessage({ action: 'toggleTranslation', enabled: false });
+  document.body.style.cursor = 'default';
+  document.removeEventListener('click', handleElementClick, true);
+  document.removeEventListener('mousemove', handleMouseMove);
+  if (hoverElement) {
+    hoverElement.style.outline = '';
+    hoverElement = null;
+  }
 
-  const text = getTextFromElement(e.target);
+  await sendToRuntime(Action.DisableElementPickBackground, {});
+
+  const text = e.target.innerHTML;
   if (text !== '') {
-    const elementId = Math.random().toFixed(10).slice(2);
+    const elementId = generateId();
     elementMap.set(elementId, e.target);
-    await browser.runtime.sendMessage({
-      action: 'translateText',
-      text: text,
+    await sendToRuntime(Action.TranslateText, {
+      text,
       elementId,
+      url: document.location.href,
+      title: document.title,
     });
   }
 }
 
-function getTextFromElement(element: Element) {
-  return element.innerHTML;
-}
-
-// Handle translation display
-browser.runtime.onMessage.addListener(message => {
-  if (message.action === 'showTranslation') {
-    showTranslation(message.translation, message.elementId);
-  } else if (message.action === 'alert') {
-    alert(message.text);
-  }
+onMessage(Action.ShowTranslation, payload => {
+  const element = elementMap.get(payload.elementId);
+  elementMap.delete(payload.elementId);
+  if (!element || !element.parentNode) return;
+  if (payload.translation === null) return;
+  const newElement = element.cloneNode() as HTMLElement;
+  newElement.innerHTML = payload.translation;
+  element.parentNode.insertBefore(newElement, element.nextSibling);
 });
 
-function showTranslation(text: string, elementId: string) {
-  const element = elementMap.get(elementId);
-  elementMap.delete(elementId);
-  console.log(element, element?.parentNode, element?.nextSibling);
-  if (!element || !element.parentNode) return;
-  const newElement = element.cloneNode() as HTMLElement;
-  newElement.innerHTML = text;
-  element.parentNode.insertBefore(newElement, element.nextSibling);
-}
+onMessage(Action.Alert, payload => {
+  alert(payload.text);
+});

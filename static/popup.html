@@ -3,16 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>AI Translator</title>
 </head>
-<script src="popup.js"></script>
 <body>
-  <h3>Settings</h3>
-  <input type="text" id="api-key" placeholder="API Key" />
-  <input type="text" id="target-lang" placeholder="Target Language" />
-  <button id="save-settings">Save Settings</button>
-  <div id="status"></div>
-  <div style="height: 100px"></div>
-  <button id="translate">Pick to Translate</button>
+  <div class="container">
+    <h3>AI Translator Settings</h3>
+    
+    <div class="settings-group">
+      <label for="base-url">Base URL</label>
+      <input type="text" id="base-url" placeholder="Enter base URL">
+    </div>
+
+    <div class="settings-group">
+      <label for="api-key">API Key</label>
+      <input type="password" id="api-key" placeholder="Enter API key">
+    </div>
+
+    <div class="settings-group">
+      <label for="target-lang">Target Language</label>
+      <input type="text" id="target-lang" placeholder="e.g., es, fr, de">
+    </div>
+
+    <div class="settings-group">
+      <label for="model">Translation Model</label>
+      <input type="text" id="model" placeholder="Enter model name">
+    </div>
+
+    <div class="button-group">
+      <button id="save-settings">Save Settings</button>
+      <button id="translate">Translate Now</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
 </body>
 </html>

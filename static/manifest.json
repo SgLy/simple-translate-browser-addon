@@ -3,7 +3,7 @@
   "name": "Text Translator",
   "version": "1.0",
   "description": "Translate selected page elements",
-  "permissions": ["storage", "activeTab", "contextMenus", "popup"],
+  "permissions": ["storage", "activeTab", "contextMenus", "webRequest", "*://api.lkeap.cloud.tencent.com/*"],
   "background": {
     "scripts": ["background.js"]
   },

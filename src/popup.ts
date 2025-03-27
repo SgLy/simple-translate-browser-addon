@@ -1,3 +1,6 @@
+import type { TranslateSettings } from './utils';
+import { Action, camelToDash, sendToRuntime, translateSettingsKeys } from './utils';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const status = (() => {
     const el = document.getElementById('status');
@@ -8,38 +11,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     return newEl;
   })();
 
-  const apiKeyElement = document.getElementById('api-key');
-  const targetLangElement = document.getElementById('target-lang');
+  const settingElements = translateSettingsKeys.map(key => document.getElementById(camelToDash(key)));
   const saveSettingsElement = document.getElementById('save-settings');
   const translateElement = document.getElementById('translate');
 
-  if (
-    apiKeyElement === null ||
-    targetLangElement === null ||
-    saveSettingsElement === null ||
-    translateElement === null
-  ) {
+  if (settingElements.some(el => el === null) || saveSettingsElement === null || translateElement === null) {
     status.innerText = 'Error: unexpected html structure';
     status.style.color = 'red';
     return;
   }
 
-  const apiKeyInput = apiKeyElement as HTMLInputElement;
-  const targetLangInput = targetLangElement as HTMLInputElement;
+  const settingsInputs = settingElements as unknown as HTMLInputElement[];
   const saveSettingsButton = saveSettingsElement as HTMLButtonElement;
   const translateButton = translateElement as HTMLButtonElement;
 
-  // Load saved settings
-  const { targetLang = 'EN', apiKey = '' } = await browser.storage.local.get(['targetLang', 'apiKey']);
-  apiKeyInput.value = apiKey;
-  targetLangInput.value = targetLang;
+  const settings = await browser.storage.local.get(translateSettingsKeys);
+  translateSettingsKeys.forEach((key, i) => {
+    settingsInputs[i].value = settings[key] || '';
+  });
 
-  // Save settings
   saveSettingsButton.addEventListener('click', () => {
-    browser.storage.local.set({
-      apiKey: apiKeyInput.value,
-      targetLang: targetLangInput.value,
+    const settings = {} as TranslateSettings;
+    translateSettingsKeys.forEach((key, i) => {
+      settings[key] = settingsInputs[i].value;
     });
+    browser.storage.local.set(settings);
     status.innerText = 'Settings saved.';
     status.style.color = 'green';
   });
@@ -50,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeTab.length !== 1) return;
     const tabId = activeTab[0].id;
     if (tabId === undefined) return;
-    browser.runtime.sendMessage({ action: 'toggleTranslation', enabled: true, tabId });
+    sendToRuntime(Action.EnableElementPickBackground, { tabId });
     window.close();
   });
 });
