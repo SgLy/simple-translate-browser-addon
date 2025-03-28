@@ -12,10 +12,25 @@ document.body.appendChild(overlayElement);
 
 let originalCursor: string | null = null;
 
-onMessage(Action.EnableElementPickInPage, () => {
+const enableElementPick = () => {
   document.addEventListener('click', handleElementClick, true);
   document.addEventListener('mousemove', handleMouseMove);
-});
+  return true;
+};
+const disableElementPick = () => {
+  document.removeEventListener('click', handleElementClick, true);
+  document.removeEventListener('mousemove', handleMouseMove);
+  overlayElement.hidden = true;
+  if (overlayingElement !== null && originalCursor !== null) {
+    overlayingElement.style.cursor = originalCursor;
+  }
+  overlayingElement = null;
+  originalCursor = null;
+  return true;
+};
+
+onMessage(Action.EnableElementPick, enableElementPick);
+onMessage(Action.DisableElementPick, disableElementPick);
 
 function handleMouseMove(e: MouseEvent) {
   const element = document.elementFromPoint(e.clientX, e.clientY);
@@ -43,16 +58,7 @@ async function handleElementClick(e: MouseEvent) {
   e.preventDefault();
   e.stopPropagation();
 
-  document.removeEventListener('click', handleElementClick, true);
-  document.removeEventListener('mousemove', handleMouseMove);
-  overlayElement.hidden = true;
-  if (overlayingElement !== null && originalCursor !== null) {
-    overlayingElement.style.cursor = originalCursor;
-  }
-  overlayingElement = null;
-  originalCursor = null;
-
-  await sendToRuntime(Action.DisableElementPickBackground, {});
+  await sendToRuntime(Action.RequestDisableElementPick, {});
 
   const text = e.target.innerHTML;
   if (text !== '') {

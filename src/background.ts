@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import type { TranslateSettings, TranslateTextPayload } from './utils';
 import { Action, onMessage, sendToTab, translateSettingsKeys } from './utils';
 
+let elementPickingTabId: number | null = null;
+
 function toggleTranslation(pickEnabled: boolean) {
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const path = pickEnabled
@@ -14,13 +16,31 @@ function toggleTranslation(pickEnabled: boolean) {
   browser.browserAction.setIcon({ path: { 48: path } });
 }
 
-onMessage(Action.EnableElementPickBackground, payload => {
-  toggleTranslation(true);
-  sendToTab(payload.tabId, Action.EnableElementPickInPage, {});
+onMessage(Action.RequestEnableElementPick, async payload => {
+  if (elementPickingTabId === payload.tabId) return true;
+  const result = await sendToTab(payload.tabId, Action.EnableElementPick, {});
+  if (result) {
+    toggleTranslation(true);
+    if (elementPickingTabId !== null) {
+      await sendToTab(elementPickingTabId, Action.RequestDisableElementPick, {});
+    }
+    elementPickingTabId = payload.tabId;
+  }
+  return result;
 });
-onMessage(Action.DisableElementPickBackground, (_, sender) => {
-  if (sender.tab?.id === undefined) return;
-  toggleTranslation(false);
+onMessage(Action.RequestDisableElementPick, async () => {
+  if (elementPickingTabId !== null) {
+    const result = await sendToTab(elementPickingTabId, Action.DisableElementPick, {});
+    if (result) {
+      toggleTranslation(false);
+      elementPickingTabId = null;
+    }
+    return result;
+  }
+  return false;
+});
+onMessage(Action.GetCurrentElementPick, async () => {
+  return elementPickingTabId;
 });
 
 onMessage(Action.TranslateText, async (payload, sender) => {

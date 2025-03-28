@@ -37,13 +37,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Translate text
+  let elementPickingNow = false;
   translateButton.addEventListener('click', async () => {
-    const activeTab = await browser.tabs.query({ active: true, currentWindow: true });
-    if (activeTab.length !== 1) return;
-    const tabId = activeTab[0].id;
-    if (tabId === undefined) return;
-    sendToRuntime(Action.EnableElementPickBackground, { tabId });
-    window.close();
+    if (!elementPickingNow) {
+      const activeTab = await browser.tabs.query({ active: true, currentWindow: true });
+      if (activeTab.length !== 1) return;
+      const tabId = activeTab[0].id;
+      if (tabId === undefined) return;
+      const result = await sendToRuntime(Action.RequestEnableElementPick, { tabId });
+      if (result) window.close();
+    } else {
+      const result = await sendToRuntime(Action.RequestDisableElementPick, {});
+      if (result) window.close();
+    }
+  });
+
+  sendToRuntime(Action.GetCurrentElementPick, {}).then(tabId => {
+    if (tabId !== null) {
+      elementPickingNow = true;
+      translateButton.classList.add('cancel');
+      translateButton.innerText = 'Cancel Translation';
+    }
   });
 });
