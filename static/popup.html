@@ -1,42 +1,143 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Translator</title>
-</head>
-<body>
-  <div class="container">
-    <h3>AI Translator Settings</h3>
-    
-    <div class="settings-group">
-      <label for="base-url">Base URL</label>
-      <input type="text" id="base-url" placeholder="Enter base URL">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Translator</title>
+    <style>
+      /* popup.css */
+      :root {
+        --mdc-theme-primary: #1a73e8;
+        --mdc-theme-surface: #ffffff;
+        --mdc-theme-background: #f5f5f5;
+        --mdc-typography-subtle-weight: 500;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Roboto', sans-serif;
+        background-color: var(--mdc-theme-background);
+        min-width: 400px;
+      }
+
+      .container {
+        background-color: var(--mdc-theme-surface);
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+        max-width: 500px;
+      }
+
+      h3 {
+        color: var(--mdc-theme-primary);
+        font-size: 1.5rem;
+        margin-bottom: 24px;
+        font-weight: 500;
+      }
+
+      .settings-group {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      label {
+        flex: 0 0 100px;
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 0.875rem;
+      }
+
+      input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: all 0.2s ease-in-out;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--mdc-theme-primary);
+        box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+      }
+
+      .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      button {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.2s ease-in-out;
+      }
+
+      #translate {
+        background-color: var(--mdc-theme-primary);
+        color: white;
+      }
+
+      #translate:hover {
+        background-color: #1557b0;
+      }
+
+      #status {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 4px;
+        text-align: center;
+        font-size: 0.875rem;
+      }
+
+      .success {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+      }
+
+      .error {
+        background-color: #ffebee;
+        color: #c62828;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h3>Translator Settings</h3>
+
+      <div class="settings-group">
+        <label for="base-url">Base URL</label>
+        <input type="text" id="base-url" placeholder="Enter base URL" />
+      </div>
+
+      <div class="settings-group">
+        <label for="api-key">API Key</label>
+        <input type="password" id="api-key" placeholder="Enter API key" />
+      </div>
+
+      <div class="settings-group">
+        <label for="target-lang">Target Language</label>
+        <input type="text" id="target-lang" placeholder="e.g., English, 中文, ja-JP" />
+      </div>
+
+      <div class="settings-group">
+        <label for="model">Translation Model</label>
+        <input type="text" id="model" placeholder="Enter model name" />
+      </div>
+
+      <div class="button-group">
+        <button id="translate">Translate Now</button>
+      </div>
+
+      <div id="status"></div>
     </div>
 
-    <div class="settings-group">
-      <label for="api-key">API Key</label>
-      <input type="password" id="api-key" placeholder="Enter API key">
-    </div>
-
-    <div class="settings-group">
-      <label for="target-lang">Target Language</label>
-      <input type="text" id="target-lang" placeholder="e.g., es, fr, de">
-    </div>
-
-    <div class="settings-group">
-      <label for="model">Translation Model</label>
-      <input type="text" id="model" placeholder="Enter model name">
-    </div>
-
-    <div class="button-group">
-      <button id="save-settings">Save Settings</button>
-      <button id="translate">Translate Now</button>
-    </div>
-
-    <div id="status"></div>
-  </div>
-
-  <script src="popup.js"></script>
-</body>
+    <script src="popup.js"></script>
+  </body>
 </html>

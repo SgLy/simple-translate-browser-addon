@@ -12,32 +12,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   })();
 
   const settingElements = translateSettingsKeys.map(key => document.getElementById(camelToDash(key)));
-  const saveSettingsElement = document.getElementById('save-settings');
   const translateElement = document.getElementById('translate');
 
-  if (settingElements.some(el => el === null) || saveSettingsElement === null || translateElement === null) {
+  if (settingElements.some(el => el === null) || translateElement === null) {
     status.innerText = 'Error: unexpected html structure';
-    status.style.color = 'red';
+    status.className = 'error';
     return;
   }
 
   const settingsInputs = settingElements as unknown as HTMLInputElement[];
-  const saveSettingsButton = saveSettingsElement as HTMLButtonElement;
   const translateButton = translateElement as HTMLButtonElement;
 
-  const settings = await browser.storage.local.get(translateSettingsKeys);
+  const settings = (await browser.storage.local.get(translateSettingsKeys)) as TranslateSettings;
   translateSettingsKeys.forEach((key, i) => {
     settingsInputs[i].value = settings[key] || '';
   });
 
-  saveSettingsButton.addEventListener('click', () => {
-    const settings = {} as TranslateSettings;
-    translateSettingsKeys.forEach((key, i) => {
-      settings[key] = settingsInputs[i].value;
+  settingsInputs.forEach((input, i) => {
+    input.addEventListener('change', () => {
+      settings[translateSettingsKeys[i]] = input.value;
+      browser.storage.local.set(settings);
+      status.innerText = `Settings saved: ${translateSettingsKeys[i]}`;
+      status.className = 'success';
     });
-    browser.storage.local.set(settings);
-    status.innerText = 'Settings saved.';
-    status.style.color = 'green';
   });
 
   // Translate text
