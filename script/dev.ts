@@ -51,10 +51,4 @@ const runWebExt = async () => {
   );
 };
 
-let webExtProcess: ReturnType<typeof runWebExt> | null = null;
-
-runWebExt()
-  .then(process => {
-    webExtProcess = process;
-  })
-  .catch(console.error);
+runWebExt().catch(console.error);

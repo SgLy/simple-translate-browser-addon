@@ -10,7 +10,7 @@
   "scripts": {
     "start": "npm run dev",
     "dev": "cross-env NODE_ENV=development ts-node script/dev.ts",
-    "build": "cross-env NODE_ENV=production webpack --config ./script/prod.config.ts --progress",
+    "build": "cross-env NODE_ENV=production ts-node script/build.ts",
     "serve": "npm run dev"
   },
   "keywords": [],

@@ -3,6 +3,7 @@ import path from 'path';
 
 import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import type { Configuration } from 'webpack';
 import { DefinePlugin } from 'webpack';
 
@@ -103,11 +104,11 @@ const baseConfig: (buildMode: 'development' | 'production') => Configuration = b
     },
   },
   plugins: [
-    // new ForkTsCheckerWebpackPlugin({
-    //   typescript: {
-    //     configFile: path.join(root, 'tsconfig.json'),
-    //   },
-    // }),
+    new ForkTsCheckerWebpackPlugin({
+      typescript: {
+        configFile: path.join(root, 'tsconfig.json'),
+      },
+    }),
     new CleanWebpackPlugin({
       verbose: false,
     }),
