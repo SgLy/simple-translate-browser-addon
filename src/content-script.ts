@@ -52,39 +52,51 @@ function handleMouseMove(e: MouseEvent) {
 }
 
 const elementMap = new Map<string, HTMLElement>();
+const opacityMap = new Map<string, string>();
 
 async function handleElementClick(e: MouseEvent) {
   if (!(e.target instanceof HTMLElement)) return;
+  if (!e.target.parentNode) return;
+  const element = e.target;
   e.preventDefault();
   e.stopPropagation();
 
+  const text = e.target.innerHTML;
+  if (text === '') return;
+
   await sendToRuntime(Action.RequestDisableElementPick, {});
 
-  const text = e.target.innerHTML;
-  if (text !== '') {
-    const elementId = generateId();
-    elementMap.set(elementId, e.target);
-    await sendToRuntime(Action.TranslateText, {
-      text,
-      elementId,
-      url: document.location.href,
-      title: document.title,
-    });
-  }
+  const elementId = generateId();
+
+  const targetElement = await (async () => {
+    const replaceMode = await sendToRuntime(Action.GetReplaceMode, {});
+    if (replaceMode) return element;
+    const newElement = element.cloneNode(true) as HTMLElement;
+    element.parentNode!.insertBefore(newElement, element.nextSibling);
+    return newElement;
+  })();
+  elementMap.set(elementId, targetElement);
+  opacityMap.set(elementId, targetElement.style.opacity);
+  targetElement.style.opacity = ((parseFloat(targetElement.style.opacity) || 1) * 0.3).toFixed(5);
+  await sendToRuntime(Action.TranslateText, {
+    text,
+    elementId,
+    url: document.location.href,
+    title: document.title,
+  });
 }
 
 onMessage(Action.ShowTranslation, payload => {
   const element = elementMap.get(payload.elementId);
   elementMap.delete(payload.elementId);
   if (!element || !element.parentNode) return;
-  if (payload.translation === null) return;
-  const newElement = element.cloneNode() as HTMLElement;
-  newElement.innerHTML = payload.translation;
-  if (payload.replaceMode) {
-    element.parentNode.replaceChild(newElement, element);
-  } else {
-    element.parentNode.insertBefore(newElement, element.nextSibling);
+  const originalOpacity = opacityMap.get(payload.elementId);
+  opacityMap.delete(payload.elementId);
+  if (originalOpacity !== undefined) {
+    element.style.opacity = originalOpacity;
   }
+  if (payload.translation === null) return;
+  element.innerHTML = payload.translation;
 });
 
 onMessage(Action.Alert, payload => {

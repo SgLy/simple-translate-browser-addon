@@ -5,6 +5,7 @@ export const enum Action {
   RequestDisableElementPick,
   DisableElementPick,
   GetCurrentElementPick,
+  GetReplaceMode,
   ShowTranslation,
   TranslateText,
 }
@@ -30,6 +31,9 @@ type DisableElementPickResponse = boolean;
 
 export type GetCurrentElementPickPayload = Record<string, never>;
 type GetCurrentElementPickResponse = number | null;
+
+export type GetReplaceModePayload = Record<string, never>;
+type GetReplaceModeResponse = boolean;
 
 export interface ShowTranslationPayload {
   translation: string | null;
@@ -58,11 +62,13 @@ type ActionToPayloadMap<A extends Action> = A extends Action.Alert
           ? DisableElementPickPayload
           : A extends Action.GetCurrentElementPick
             ? GetCurrentElementPickPayload
-            : A extends Action.ShowTranslation
-              ? ShowTranslationPayload
-              : A extends Action.TranslateText
-                ? TranslateTextPayload
-                : never;
+            : A extends Action.GetReplaceMode
+              ? GetReplaceModePayload
+              : A extends Action.ShowTranslation
+                ? ShowTranslationPayload
+                : A extends Action.TranslateText
+                  ? TranslateTextPayload
+                  : never;
 
 type ActionToResponseMap<A extends Action> = A extends Action.Alert
   ? AlertResponse
@@ -76,11 +82,13 @@ type ActionToResponseMap<A extends Action> = A extends Action.Alert
           ? DisableElementPickResponse
           : A extends Action.GetCurrentElementPick
             ? GetCurrentElementPickResponse
-            : A extends Action.ShowTranslation
-              ? ShowTranslationResponse
-              : A extends Action.TranslateText
-                ? TranslateTextResponse
-                : never;
+            : A extends Action.GetReplaceMode
+              ? GetReplaceModeResponse
+              : A extends Action.ShowTranslation
+                ? ShowTranslationResponse
+                : A extends Action.TranslateText
+                  ? TranslateTextResponse
+                  : never;
 
 type PromiseOrValue<T> = T | Promise<T>;
 

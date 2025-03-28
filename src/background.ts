@@ -48,6 +48,10 @@ onMessage(Action.RequestDisableElementPick, async () => {
 onMessage(Action.GetCurrentElementPick, async () => {
   return elementPickingTabId;
 });
+onMessage(Action.GetReplaceMode, async () => {
+  const { replaceMode } = await browser.storage.local.get({ replaceMode: defaultTranslateSettings.replaceMode });
+  return replaceMode;
+});
 
 onMessage(Action.TranslateText, async (payload, sender) => {
   if (sender.tab?.id === undefined) return;
