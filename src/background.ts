@@ -4,27 +4,33 @@ import { Action, onMessage, sendToTab, translateSettingsKeys } from './utils';
 
 let elementPickingTabId: number | null = null;
 
-function toggleTranslation(pickEnabled: boolean) {
-  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const path = pickEnabled
-    ? dark
-      ? 'icons/icon-active-dark-48.png'
-      : 'icons/icon-active-48.png'
-    : dark
-      ? 'icons/icon-dark-48.png'
-      : 'icons/icon-48.png';
+const updateIcon = () => {
+  const icons = {
+    active: {
+      light: 'icons/icon-active-48.png',
+      dark: 'icons/icon-active-dark-48.png',
+    },
+    inactive: {
+      light: 'icons/icon-48.png',
+      dark: 'icons/icon-dark-48.png',
+    },
+  };
+  const color = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const status = elementPickingTabId === null ? 'inactive' : 'active';
+  const path = icons[status][color];
   browser.browserAction.setIcon({ path: { 48: path } });
-}
+};
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateIcon);
 
 onMessage(Action.RequestEnableElementPick, async payload => {
   if (elementPickingTabId === payload.tabId) return true;
   const result = await sendToTab(payload.tabId, Action.EnableElementPick, {});
   if (result) {
-    toggleTranslation(true);
     if (elementPickingTabId !== null) {
       await sendToTab(elementPickingTabId, Action.RequestDisableElementPick, {});
     }
     elementPickingTabId = payload.tabId;
+    updateIcon();
   }
   return result;
 });
@@ -32,8 +38,8 @@ onMessage(Action.RequestDisableElementPick, async () => {
   if (elementPickingTabId !== null) {
     const result = await sendToTab(elementPickingTabId, Action.DisableElementPick, {});
     if (result) {
-      toggleTranslation(false);
       elementPickingTabId = null;
+      updateIcon();
     }
     return result;
   }
