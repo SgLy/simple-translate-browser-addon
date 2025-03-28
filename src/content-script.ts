@@ -1,9 +1,18 @@
 import { Action, generateId, onMessage, sendToRuntime } from './utils';
 
-let hoverElement: HTMLElement | null = null;
+const overlayMargin = 8; // px
+const overlayElement = document.createElement('div');
+overlayElement.hidden = true;
+overlayElement.style.position = 'fixed';
+overlayElement.style.backgroundColor = 'hsl(200deg 100% 70% / 40%)';
+overlayElement.style.pointerEvents = 'none';
+overlayElement.style.zIndex = Number.MAX_SAFE_INTEGER.toString(10);
+let overlayingElement: HTMLElement | null = null;
+document.body.appendChild(overlayElement);
+
+let originalCursor: string | null = null;
 
 onMessage(Action.EnableElementPickInPage, () => {
-  document.body.style.cursor = 'crosshair';
   document.addEventListener('click', handleElementClick, true);
   document.addEventListener('mousemove', handleMouseMove);
 });
@@ -11,12 +20,19 @@ onMessage(Action.EnableElementPickInPage, () => {
 function handleMouseMove(e: MouseEvent) {
   const element = document.elementFromPoint(e.clientX, e.clientY);
   if (!(element instanceof HTMLElement)) return;
-  if (element && element !== hoverElement) {
-    if (hoverElement) {
-      hoverElement.style.outline = '';
+  if (element && element !== overlayingElement) {
+    if (overlayingElement !== null && originalCursor !== null) {
+      overlayingElement.style.cursor = originalCursor;
     }
-    hoverElement = element;
-    hoverElement.style.outline = '2px solid #ff0000';
+    overlayingElement = element;
+    originalCursor = overlayingElement.style.cursor;
+    overlayingElement.style.cursor = 'crosshair';
+    overlayElement.hidden = false;
+    const rect = overlayingElement.getBoundingClientRect();
+    overlayElement.style.left = rect.x - overlayMargin + 'px';
+    overlayElement.style.top = rect.y - overlayMargin + 'px';
+    overlayElement.style.width = rect.width + 2 * overlayMargin + 'px';
+    overlayElement.style.height = rect.height + 2 * overlayMargin + 'px';
   }
 }
 
@@ -27,13 +43,14 @@ async function handleElementClick(e: MouseEvent) {
   e.preventDefault();
   e.stopPropagation();
 
-  document.body.style.cursor = 'default';
   document.removeEventListener('click', handleElementClick, true);
   document.removeEventListener('mousemove', handleMouseMove);
-  if (hoverElement) {
-    hoverElement.style.outline = '';
-    hoverElement = null;
+  overlayElement.hidden = true;
+  if (overlayingElement !== null && originalCursor !== null) {
+    overlayingElement.style.cursor = originalCursor;
   }
+  overlayingElement = null;
+  originalCursor = null;
 
   await sendToRuntime(Action.DisableElementPickBackground, {});
 
