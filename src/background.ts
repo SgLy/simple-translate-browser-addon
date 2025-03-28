@@ -21,6 +21,7 @@ const updateIcon = () => {
   browser.browserAction.setIcon({ path: { 48: path } });
 };
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateIcon);
+updateIcon();
 
 onMessage(Action.RequestEnableElementPick, async payload => {
   if (elementPickingTabId === payload.tabId) return true;
