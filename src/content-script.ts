@@ -80,7 +80,11 @@ onMessage(Action.ShowTranslation, payload => {
   if (payload.translation === null) return;
   const newElement = element.cloneNode() as HTMLElement;
   newElement.innerHTML = payload.translation;
-  element.parentNode.insertBefore(newElement, element.nextSibling);
+  if (payload.replaceMode) {
+    element.parentNode.replaceChild(newElement, element);
+  } else {
+    element.parentNode.insertBefore(newElement, element.nextSibling);
+  }
 });
 
 onMessage(Action.Alert, payload => {

@@ -34,6 +34,7 @@ type GetCurrentElementPickResponse = number | null;
 export interface ShowTranslationPayload {
   translation: string | null;
   elementId: string;
+  replaceMode: boolean;
 }
 type ShowTranslationResponse = void;
 
@@ -125,13 +126,20 @@ browser.runtime.onMessage.addListener((message, sender) => {
   });
 });
 
-export const translateSettingsKeys = ['baseURL', 'targetLang', 'apiKey', 'model'] as const;
 export interface TranslateSettings {
   baseURL: string;
   targetLang: string;
   apiKey: string;
   model: string;
+  replaceMode: boolean;
 }
+export const defaultTranslateSettings: TranslateSettings = {
+  baseURL: '',
+  targetLang: '',
+  apiKey: '',
+  model: '',
+  replaceMode: false,
+};
 
 export const generateId = () =>
   Math.round(Math.random() * 0xffffffff)
@@ -139,3 +147,5 @@ export const generateId = () =>
     .padStart(8, '0');
 
 export const camelToDash = (str: string) => str.replace(/([A-Z]+)/g, '-$1').toLowerCase();
+
+export const objectKeys = Object.keys as <T extends string>(obj: Record<T, any>) => T[];

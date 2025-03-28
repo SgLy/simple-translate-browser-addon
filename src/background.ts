@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type { TranslateSettings, TranslateTextPayload } from './utils';
-import { Action, onMessage, sendToTab, translateSettingsKeys } from './utils';
+import { Action, defaultTranslateSettings, objectKeys, onMessage, sendToTab } from './utils';
 
 let elementPickingTabId: number | null = null;
 
@@ -52,10 +52,10 @@ onMessage(Action.GetCurrentElementPick, async () => {
 onMessage(Action.TranslateText, async (payload, sender) => {
   if (sender.tab?.id === undefined) return;
   const tabId: number = sender.tab?.id;
-  const result = await browser.storage.local.get(translateSettingsKeys);
+  const settings = await browser.storage.local.get(defaultTranslateSettings);
 
-  const paramOk = translateSettingsKeys.every(key => {
-    if (typeof result[key] !== 'string' || result[key] === '') {
+  const paramOk = objectKeys(defaultTranslateSettings).every(key => {
+    if (typeof settings[key] === 'string' && settings[key] === '') {
       sendToTab(tabId, Action.Alert, {
         text: `Please set your ${key} in the extension settings`,
       });
@@ -65,10 +65,11 @@ onMessage(Action.TranslateText, async (payload, sender) => {
   });
   if (!paramOk) return;
 
-  const translation = await translateText(payload, result as TranslateSettings);
+  const translation = await translateText(payload, settings as TranslateSettings);
   await sendToTab(tabId, Action.ShowTranslation, {
     translation,
     elementId: payload.elementId,
+    replaceMode: settings.replaceMode,
   });
 });
 

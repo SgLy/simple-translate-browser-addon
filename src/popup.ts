@@ -1,5 +1,5 @@
 import type { TranslateSettings } from './utils';
-import { Action, camelToDash, sendToRuntime, translateSettingsKeys } from './utils';
+import { Action, camelToDash, defaultTranslateSettings, objectKeys, sendToRuntime } from './utils';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const status = (() => {
@@ -11,28 +11,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     return newEl;
   })();
 
-  const settingElements = translateSettingsKeys.map(key => document.getElementById(camelToDash(key)));
   const translateElement = document.getElementById('translate');
-
-  if (settingElements.some(el => el === null) || translateElement === null) {
+  if (translateElement === null) {
     status.innerText = 'Error: unexpected html structure';
     status.className = 'error';
     return;
   }
 
-  const settingsInputs = settingElements as unknown as HTMLInputElement[];
   const translateButton = translateElement as HTMLButtonElement;
 
-  const settings = (await browser.storage.local.get(translateSettingsKeys)) as TranslateSettings;
-  translateSettingsKeys.forEach((key, i) => {
-    settingsInputs[i].value = settings[key] || '';
-  });
+  const settings = (await browser.storage.local.get(defaultTranslateSettings)) as TranslateSettings;
 
-  settingsInputs.forEach((input, i) => {
+  objectKeys(defaultTranslateSettings).forEach(async <T extends keyof TranslateSettings>(key: T) => {
+    const elementId = camelToDash(key);
+    const el = document.getElementById(elementId);
+    if (el === null) {
+      status.innerText = `Error: missing setting element for ${key}`;
+      status.className = 'error';
+      return;
+    }
+    const input = el as HTMLInputElement;
+    if (typeof defaultTranslateSettings[key] === 'boolean') {
+      if (input.type !== 'checkbox') {
+        status.innerText = `Error: unexpected input type for ${key}`;
+        status.className = 'error';
+        return;
+      }
+      input.checked = (settings[key] as boolean | null) || false;
+    } else {
+      if (input.type !== 'text') {
+        status.innerText = `Error: unexpected input type for ${key}`;
+        status.className = 'error';
+        return;
+      }
+      input.value = (settings[key] as string | null) || '';
+    }
     input.addEventListener('change', () => {
-      settings[translateSettingsKeys[i]] = input.value;
+      if (typeof defaultTranslateSettings[key] === 'boolean') {
+        (settings[key] as boolean) = input.checked;
+      } else {
+        (settings[key] as string) = input.value;
+      }
       browser.storage.local.set(settings);
-      status.innerText = `Settings saved: ${translateSettingsKeys[i]}`;
+      status.innerText = `Settings saved: ${key}`;
       status.className = 'success';
     });
   });
