@@ -56,7 +56,7 @@ onMessage(Action.DisableElementPick, disableElementPick);
 let pickingMultipleElements = false;
 let pickedElements = 0;
 
-function handleKeyDown(e: KeyboardEvent) {
+async function handleKeyDown(e: KeyboardEvent) {
   switch (e.key) {
     case 'Shift':
       if (pickingMultipleElements === false) {
@@ -79,6 +79,10 @@ function handleKeyDown(e: KeyboardEvent) {
       } else {
         flashOverlay();
       }
+      break;
+    case 'Escape':
+      await sendToRuntime(Action.RequestDisableElementPick, {});
+      break;
   }
 }
 async function handleKeyUp(e: KeyboardEvent) {
