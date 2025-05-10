@@ -7,7 +7,11 @@ overlayElement.style.position = 'fixed';
 overlayElement.style.backgroundColor = 'hsl(200deg 100% 70% / 40%)';
 overlayElement.style.pointerEvents = 'none';
 overlayElement.style.zIndex = Number.MAX_SAFE_INTEGER.toString(10);
+overlayElement.style.borderRadius = '4px';
+overlayElement.style.transition = 'background-color 0.1s ease-in-out';
 let overlayingElement: HTMLElement | null = null;
+let currentPickingElement: HTMLElement | null = null;
+const upcastElements: HTMLElement[] = [];
 document.body.appendChild(overlayElement);
 
 let originalCursor: string | null = null;
@@ -15,23 +19,36 @@ let originalCursor: string | null = null;
 const enableElementPick = () => {
   document.addEventListener('click', handleElementClick, true);
   document.addEventListener('mousemove', handleMouseMove);
-  document.addEventListener('keydown', handleShiftKeyDown);
-  document.addEventListener('keyup', handleShiftKeyUp);
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
   return true;
 };
 const disableElementPick = () => {
   document.removeEventListener('click', handleElementClick, true);
   document.removeEventListener('mousemove', handleMouseMove);
-  document.removeEventListener('keydown', handleShiftKeyDown);
-  document.removeEventListener('keyup', handleShiftKeyUp);
+  document.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener('keyup', handleKeyUp);
   overlayElement.hidden = true;
-  if (overlayingElement !== null && originalCursor !== null) {
-    overlayingElement.style.cursor = originalCursor;
+  if (currentPickingElement !== null && originalCursor !== null) {
+    currentPickingElement.style.cursor = originalCursor;
   }
+  currentPickingElement = null;
   overlayingElement = null;
   originalCursor = null;
   return true;
 };
+
+let flashing = false;
+async function flashOverlay() {
+  if (flashing) return;
+  flashing = true;
+  const currentBackgroundColor = overlayElement.style.backgroundColor;
+  overlayElement.style.backgroundColor = 'hsl(200deg 100% 100% / 40%)';
+  await new Promise(resolve => setTimeout(resolve, 100));
+  overlayElement.style.backgroundColor = currentBackgroundColor;
+  await new Promise(resolve => setTimeout(resolve, 100));
+  flashing = false;
+}
 
 onMessage(Action.EnableElementPick, enableElementPick);
 onMessage(Action.DisableElementPick, disableElementPick);
@@ -39,13 +56,32 @@ onMessage(Action.DisableElementPick, disableElementPick);
 let pickingMultipleElements = false;
 let pickedElements = 0;
 
-function handleShiftKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Shift' && pickingMultipleElements === false) {
-    pickingMultipleElements = true;
-    pickedElements = 0;
+function handleKeyDown(e: KeyboardEvent) {
+  switch (e.key) {
+    case 'Shift':
+      if (pickingMultipleElements === false) {
+        pickingMultipleElements = true;
+        pickedElements = 0;
+      }
+      break;
+    case 'w':
+      if (currentPickingElement?.parentElement instanceof HTMLElement) {
+        upcastElements.push(currentPickingElement);
+        pickElement(currentPickingElement.parentElement);
+      } else {
+        flashOverlay();
+      }
+      break;
+    case 's':
+      if (upcastElements.length > 0) {
+        const lastElement = upcastElements.pop()!;
+        pickElement(lastElement);
+      } else {
+        flashOverlay();
+      }
   }
 }
-async function handleShiftKeyUp(e: KeyboardEvent) {
+async function handleKeyUp(e: KeyboardEvent) {
   if (e.key === 'Shift' && pickingMultipleElements === true) {
     pickingMultipleElements = false;
     if (pickedElements > 0) {
@@ -58,19 +94,25 @@ function handleMouseMove(e: MouseEvent) {
   const element = document.elementFromPoint(e.clientX, e.clientY);
   if (!(element instanceof HTMLElement)) return;
   if (element && element !== overlayingElement) {
-    if (overlayingElement !== null && originalCursor !== null) {
-      overlayingElement.style.cursor = originalCursor;
-    }
     overlayingElement = element;
-    originalCursor = overlayingElement.style.cursor;
-    overlayingElement.style.cursor = 'crosshair';
-    overlayElement.hidden = false;
-    const rect = overlayingElement.getBoundingClientRect();
-    overlayElement.style.left = rect.x - overlayMargin + 'px';
-    overlayElement.style.top = rect.y - overlayMargin + 'px';
-    overlayElement.style.width = rect.width + 2 * overlayMargin + 'px';
-    overlayElement.style.height = rect.height + 2 * overlayMargin + 'px';
+    upcastElements.length = 0;
+    pickElement(element);
   }
+}
+
+function pickElement(element: HTMLElement) {
+  if (currentPickingElement !== null && originalCursor !== null) {
+    currentPickingElement.style.cursor = originalCursor;
+  }
+  currentPickingElement = element;
+  originalCursor = element.style.cursor;
+  element.style.cursor = 'crosshair';
+  overlayElement.hidden = false;
+  const rect = element.getBoundingClientRect();
+  overlayElement.style.left = rect.x - overlayMargin + 'px';
+  overlayElement.style.top = rect.y - overlayMargin + 'px';
+  overlayElement.style.width = rect.width + 2 * overlayMargin + 'px';
+  overlayElement.style.height = rect.height + 2 * overlayMargin + 'px';
 }
 
 const elementMap = new Map<string, HTMLElement>();
