@@ -15,11 +15,15 @@ let originalCursor: string | null = null;
 const enableElementPick = () => {
   document.addEventListener('click', handleElementClick, true);
   document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('keydown', handleShiftKeyDown);
+  document.addEventListener('keyup', handleShiftKeyUp);
   return true;
 };
 const disableElementPick = () => {
   document.removeEventListener('click', handleElementClick, true);
   document.removeEventListener('mousemove', handleMouseMove);
+  document.removeEventListener('keydown', handleShiftKeyDown);
+  document.removeEventListener('keyup', handleShiftKeyUp);
   overlayElement.hidden = true;
   if (overlayingElement !== null && originalCursor !== null) {
     overlayingElement.style.cursor = originalCursor;
@@ -31,6 +35,24 @@ const disableElementPick = () => {
 
 onMessage(Action.EnableElementPick, enableElementPick);
 onMessage(Action.DisableElementPick, disableElementPick);
+
+let pickingMultipleElements = false;
+let pickedElements = 0;
+
+function handleShiftKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Shift' && pickingMultipleElements === false) {
+    pickingMultipleElements = true;
+    pickedElements = 0;
+  }
+}
+async function handleShiftKeyUp(e: KeyboardEvent) {
+  if (e.key === 'Shift' && pickingMultipleElements === true) {
+    pickingMultipleElements = false;
+    if (pickedElements > 0) {
+      await sendToRuntime(Action.RequestDisableElementPick, {});
+    }
+  }
+}
 
 function handleMouseMove(e: MouseEvent) {
   const element = document.elementFromPoint(e.clientX, e.clientY);
@@ -64,7 +86,11 @@ async function handleElementClick(e: MouseEvent) {
   const text = e.target.innerHTML;
   if (text === '') return;
 
-  await sendToRuntime(Action.RequestDisableElementPick, {});
+  if (pickingMultipleElements) {
+    pickedElements += 1;
+  } else {
+    await sendToRuntime(Action.RequestDisableElementPick, {});
+  }
 
   const elementId = generateId();
 
