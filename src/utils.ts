@@ -44,6 +44,7 @@ type ShowTranslationResponse = void;
 
 export interface TranslateTextPayload {
   text: string;
+  hint: Record<string, string>;
   elementId: string;
   url: string;
   title: string;

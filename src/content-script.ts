@@ -83,7 +83,9 @@ async function handleElementClick(e: MouseEvent) {
   e.preventDefault();
   e.stopPropagation();
 
-  const text = e.target.innerHTML;
+  const clonedElement = element.cloneNode(true) as HTMLElement;
+  const hint = extractRuby(clonedElement);
+  const text = clonedElement.innerHTML;
   if (text === '') return;
 
   if (pickingMultipleElements) {
@@ -94,22 +96,45 @@ async function handleElementClick(e: MouseEvent) {
 
   const elementId = generateId();
 
-  const targetElement = await (async () => {
+  const replaceTargetElement = await (async () => {
     const replaceMode = await sendToRuntime(Action.GetReplaceMode, {});
     if (replaceMode) return element;
     const newElement = element.cloneNode(true) as HTMLElement;
     element.parentNode!.insertBefore(newElement, element.nextSibling);
     return newElement;
   })();
-  elementMap.set(elementId, targetElement);
-  opacityMap.set(elementId, targetElement.style.opacity);
-  targetElement.style.opacity = ((parseFloat(targetElement.style.opacity) || 1) * 0.3).toFixed(5);
+  elementMap.set(elementId, replaceTargetElement);
+  opacityMap.set(elementId, replaceTargetElement.style.opacity);
+  replaceTargetElement.style.opacity = ((parseFloat(replaceTargetElement.style.opacity) || 1) * 0.3).toFixed(5);
   await sendToRuntime(Action.TranslateText, {
     text,
+    hint,
     elementId,
     url: document.location.href,
     title: document.title,
   });
+}
+
+function extractRuby(e: HTMLElement): Record<string, string> {
+  const rubyElements = e.querySelectorAll('ruby');
+  const entries = Array.from(rubyElements)
+    .map(ruby => {
+      const rt = Array.from(ruby.childNodes).find(c => 'tagName' in c && c.tagName === 'RT');
+      if (!rt) return null;
+      ruby.removeChild(rt);
+      const rtText = (rt as HTMLElement).textContent;
+      const rubyText = ruby.textContent;
+      if (rtText === null || rubyText === null) return null;
+      const ret = [rtText, rubyText] as const;
+      try {
+        ruby.replaceWith(...Array.from(rt.childNodes));
+      } catch {
+        /* do nothing */
+      }
+      return ret;
+    })
+    .filter(e => e !== null);
+  return Object.fromEntries(entries);
 }
 
 onMessage(Action.ShowTranslation, payload => {

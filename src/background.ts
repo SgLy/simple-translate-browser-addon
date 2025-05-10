@@ -85,18 +85,30 @@ async function translateText(payload: TranslateTextPayload, settings: TranslateS
     dangerouslyAllowBrowser: true,
     maxRetries: 1,
   });
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    {
+      role: 'system',
+      content: `Translate the given HTML segment from URL "${payload.url}" with title "${payload.title}" to language "${settings.targetLang}". You should only translate the text contents, and keep all attributes, code snippets or HTML specific syntax untouched. Do not output any other text except the translated text since the user may be a program.`,
+    },
+  ];
+  if (Object.keys(payload.hint).length > 0) {
+    const hintsPair = Object.entries(payload.hint)
+      .map(([original, translated]) => `- ${original}: ${translated}`)
+      .join('\n');
+    messages.push({
+      role: 'system',
+      content: `Here are some hints that may be helpful for translation:\n${hintsPair}`,
+    });
+  }
+  messages.push({
+    role: 'user',
+    content: payload.text,
+  });
   const completion = await client.chat.completions.create({
     model: settings.model,
-    messages: [
-      {
-        role: 'system',
-        content: `Translate the given HTML segment from URL "${payload.url}" with title "${payload.title}" to language "${settings.targetLang}". You should only translate the text contents, and keep all attributes, code snippets or HTML specific syntax untouched. Do not output any other text except the translated text since the user may be a program.`,
-      },
-      {
-        role: 'user',
-        content: payload.text,
-      },
-    ],
+    messages,
   });
+
   return completion.choices[0].message.content;
 }
