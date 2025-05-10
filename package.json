@@ -48,7 +48,6 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.0",
-    "typescript-plugin-css-modules": "^5.1.0",
     "url-loader": "^4.1.1",
     "web-ext": "^8.5.0",
     "webpack": "^5.98.0",
