@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { TranslateSettings, TranslateTextPayload } from './utils';
+import type { ReplaceMode, TranslateSettings, TranslateTextPayload } from './utils';
 import { Action, defaultTranslateSettings, objectKeys, onMessage, sendToTab } from './utils';
 
 let elementPickingTabId: number | null = null;
@@ -51,31 +51,38 @@ onMessage(Action.GetCurrentElementPick, async () => {
 });
 onMessage(Action.GetReplaceMode, async () => {
   const { replaceMode } = await browser.storage.local.get({ replaceMode: defaultTranslateSettings.replaceMode });
-  return replaceMode;
+  return replaceMode as ReplaceMode;
 });
 
 onMessage(Action.TranslateText, async (payload, sender) => {
   if (sender.tab?.id === undefined) return;
   const tabId: number = sender.tab?.id;
-  const settings = await browser.storage.local.get(defaultTranslateSettings);
+  try {
+    const settings = await browser.storage.local.get(defaultTranslateSettings);
 
-  const paramOk = objectKeys(defaultTranslateSettings).every(key => {
-    if (typeof settings[key] === 'string' && settings[key] === '') {
-      sendToTab(tabId, Action.Alert, {
-        text: `Please set your ${key} in the extension settings`,
-      });
-      return false;
+    const invalidKeys = objectKeys(defaultTranslateSettings).filter(key => {
+      return !(typeof settings[key] === 'string' && settings[key] !== '');
+    });
+    if (invalidKeys.length > 0) {
+      throw new Error(`Please set your ${invalidKeys.join(', ')} in the extension settings`);
     }
-    return true;
-  });
-  if (!paramOk) return;
 
-  const translation = await translateText(payload, settings as TranslateSettings);
-  await sendToTab(tabId, Action.ShowTranslation, {
-    translation,
-    elementId: payload.elementId,
-    replaceMode: settings.replaceMode,
-  });
+    const translation = await translateText(payload, settings as TranslateSettings);
+    await sendToTab(tabId, Action.ShowTranslation, {
+      translation,
+      elementId: payload.elementId,
+    });
+  } catch (error) {
+    const errMsg =
+      error instanceof Error && 'message' in error && typeof error.message === 'string' ? error.message : String(error);
+    await sendToTab(tabId, Action.Alert, {
+      text: `Error translating text: ${errMsg}`,
+    });
+    await sendToTab(tabId, Action.ShowTranslation, {
+      translation: null,
+      elementId: payload.elementId,
+    });
+  }
 });
 
 async function translateText(payload: TranslateTextPayload, settings: TranslateSettings) {

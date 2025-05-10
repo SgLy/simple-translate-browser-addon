@@ -1,4 +1,4 @@
-import { Action, generateId, onMessage, sendToRuntime } from './utils';
+import { Action, generateId, onMessage, ReplaceMode, sendToRuntime } from './utils';
 
 const overlayMargin = 8; // px
 const overlayElement = document.createElement('div');
@@ -115,6 +115,7 @@ function pickElement(element: HTMLElement) {
   overlayElement.style.height = rect.height + 2 * overlayMargin + 'px';
 }
 
+const isPlaceholder = new Set<HTMLElement>();
 const elementMap = new Map<string, HTMLElement>();
 const opacityMap = new Map<string, string>();
 
@@ -140,9 +141,10 @@ async function handleElementClick(e: MouseEvent) {
 
   const replaceTargetElement = await (async () => {
     const replaceMode = await sendToRuntime(Action.GetReplaceMode, {});
-    if (replaceMode) return element;
+    if (replaceMode === ReplaceMode.Replace) return element;
     const newElement = element.cloneNode(true) as HTMLElement;
     element.parentNode!.insertBefore(newElement, element.nextSibling);
+    isPlaceholder.add(newElement);
     return newElement;
   })();
   elementMap.set(elementId, replaceTargetElement);
@@ -188,8 +190,14 @@ onMessage(Action.ShowTranslation, payload => {
   if (originalOpacity !== undefined) {
     element.style.opacity = originalOpacity;
   }
-  if (payload.translation === null) return;
-  element.innerHTML = payload.translation;
+  if (payload.translation === null) {
+    if (isPlaceholder.has(element)) {
+      element.remove();
+    }
+  } else {
+    element.innerHTML = payload.translation;
+  }
+  isPlaceholder.delete(element);
 });
 
 onMessage(Action.Alert, payload => {

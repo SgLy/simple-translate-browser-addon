@@ -33,12 +33,11 @@ export type GetCurrentElementPickPayload = Record<string, never>;
 type GetCurrentElementPickResponse = number | null;
 
 export type GetReplaceModePayload = Record<string, never>;
-type GetReplaceModeResponse = boolean;
+type GetReplaceModeResponse = ReplaceMode;
 
 export interface ShowTranslationPayload {
   translation: string | null;
   elementId: string;
-  replaceMode: boolean;
 }
 type ShowTranslationResponse = void;
 
@@ -135,19 +134,24 @@ browser.runtime.onMessage.addListener((message, sender) => {
   });
 });
 
+export const enum ReplaceMode {
+  Append = 'append',
+  Replace = 'replace',
+}
+
 export interface TranslateSettings {
   baseURL: string;
   targetLang: string;
   apiKey: string;
   model: string;
-  replaceMode: boolean;
+  replaceMode: ReplaceMode;
 }
 export const defaultTranslateSettings: TranslateSettings = {
   baseURL: '',
   targetLang: '',
   apiKey: '',
   model: '',
-  replaceMode: false,
+  replaceMode: ReplaceMode.Append,
 };
 
 export const generateId = () =>

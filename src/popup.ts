@@ -1,5 +1,5 @@
 import type { TranslateSettings } from './utils';
-import { Action, camelToDash, defaultTranslateSettings, objectKeys, sendToRuntime } from './utils';
+import { Action, camelToDash, defaultTranslateSettings, objectKeys, ReplaceMode, sendToRuntime } from './utils';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const status = (() => {
@@ -31,24 +31,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const input = el as HTMLInputElement;
-    if (typeof defaultTranslateSettings[key] === 'boolean') {
-      if (input.type !== 'checkbox') {
-        status.innerText = `Error: unexpected input type for ${key}`;
-        status.className = 'error';
-        return;
-      }
-      input.checked = (settings[key] as boolean | null) || false;
-    } else {
-      if (input.type !== 'text') {
-        status.innerText = `Error: unexpected input type for ${key}`;
-        status.className = 'error';
-        return;
-      }
-      input.value = (settings[key] as string | null) || '';
+    switch (key) {
+      case 'baseURL':
+      case 'targetLang':
+      case 'apiKey':
+      case 'model':
+        if (input.type !== 'text') {
+          status.innerText = `Error: unexpected input type for ${key}`;
+          status.className = 'error';
+          return;
+        }
+        input.value = (settings[key] as string | null) || '';
+        break;
+      case 'replaceMode':
+        if (input.type !== 'checkbox') {
+          status.innerText = `Error: unexpected input type for ${key}`;
+          status.className = 'error';
+          return;
+        }
+        input.checked = settings[key] === ReplaceMode.Replace;
+        break;
     }
     input.addEventListener('change', () => {
-      if (typeof defaultTranslateSettings[key] === 'boolean') {
-        (settings[key] as boolean) = input.checked;
+      if (key === 'replaceMode') {
+        settings[key] = input.checked ? ReplaceMode.Replace : ReplaceMode.Append;
       } else {
         (settings[key] as string) = input.value;
       }
