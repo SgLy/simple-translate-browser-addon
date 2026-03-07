@@ -19,7 +19,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const targetLangInput = document.getElementById('target-lang') as HTMLInputElement | null;
   const replaceModeInput = document.getElementById('replace-mode') as HTMLInputElement | null;
 
-  if (!translateButton || !profileTabsContainer || !baseUrlInput || !apiKeyInput || !modelInput || !targetLangInput || !replaceModeInput) {
+  if (
+    !translateButton ||
+    !profileTabsContainer ||
+    !baseUrlInput ||
+    !apiKeyInput ||
+    !modelInput ||
+    !targetLangInput ||
+    !replaceModeInput
+  ) {
     status.innerText = 'Error: unexpected html structure';
     status.className = 'error';
     return;
@@ -30,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ...defaultProfileStorage,
     ...defaultGlobalSettings,
   });
-  let profiles: ApiProfile[] = storage.profiles as ApiProfile[];
+  const profiles: ApiProfile[] = storage.profiles as ApiProfile[];
   let activeProfileId: string | null = storage.activeProfileId as string | null;
   const globalSettings: GlobalSettings = {
     targetLang: storage.targetLang as string,
@@ -96,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       deleteBtn.className = 'delete-btn';
       deleteBtn.textContent = '×';
       deleteBtn.title = `Delete "${profile.id}"`;
-      deleteBtn.addEventListener('click', async (e) => {
+      deleteBtn.addEventListener('click', async e => {
         e.stopPropagation();
         profiles.splice(index, 1);
         if (activeProfileId === profile.id) {

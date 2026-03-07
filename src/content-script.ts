@@ -1,4 +1,4 @@
-import { Action, generateId, onMessage, ReplaceMode, sendToRuntime } from './utils';
+import { Action, ReplaceMode, generateId, onMessage, sendToRuntime } from './utils';
 
 const overlayMargin = 8; // px
 const overlayElement = document.createElement('div');
@@ -122,6 +122,7 @@ function pickElement(element: HTMLElement) {
 const isPlaceholder = new Set<HTMLElement>();
 const elementMap = new Map<string, HTMLElement>();
 const opacityMap = new Map<string, string>();
+const streamBufferMap = new Map<string, string>();
 
 async function handleElementClick(e: MouseEvent) {
   if (!(e.target instanceof HTMLElement)) return;
@@ -185,21 +186,46 @@ function extractRuby(e: HTMLElement): Record<string, string> {
   return Object.fromEntries(entries);
 }
 
-onMessage(Action.ShowTranslation, payload => {
+/**
+ * Find the last position in the HTML string that is safe to render via innerHTML.
+ * Avoids cutting in the middle of an incomplete tag like `<a href="htt`.
+ * Structurally unclosed tags (e.g. `<strong>text` without `</strong>`) are fine —
+ * the browser auto-closes them within the element boundary.
+ */
+function findSafeRenderPoint(html: string): number {
+  const lastOpenBracket = html.lastIndexOf('<');
+  if (lastOpenBracket === -1) return html.length;
+  const lastCloseBracket = html.lastIndexOf('>');
+  if (lastCloseBracket > lastOpenBracket) return html.length;
+  // There's an unclosed `<` — truncate before it
+  return lastOpenBracket;
+}
+
+onMessage(Action.SendTranslationDelta, payload => {
+  const element = elementMap.get(payload.elementId);
+  if (!element || !element.parentNode) return;
+  const buffer = (streamBufferMap.get(payload.elementId) ?? '') + payload.delta;
+  streamBufferMap.set(payload.elementId, buffer);
+  element.innerHTML = buffer.slice(0, findSafeRenderPoint(buffer));
+});
+
+onMessage(Action.FinishTranslation, payload => {
   const element = elementMap.get(payload.elementId);
   elementMap.delete(payload.elementId);
+  const buffer = streamBufferMap.get(payload.elementId);
+  streamBufferMap.delete(payload.elementId);
   if (!element || !element.parentNode) return;
   const originalOpacity = opacityMap.get(payload.elementId);
   opacityMap.delete(payload.elementId);
   if (originalOpacity !== undefined) {
     element.style.opacity = originalOpacity;
   }
-  if (payload.translation === null) {
+  if (payload.error !== null) {
     if (isPlaceholder.has(element)) {
       element.remove();
     }
-  } else {
-    element.innerHTML = payload.translation;
+  } else if (buffer !== undefined) {
+    element.innerHTML = buffer;
   }
   isPlaceholder.delete(element);
 });

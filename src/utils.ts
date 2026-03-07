@@ -6,7 +6,8 @@ export const enum Action {
   DisableElementPick,
   GetCurrentElementPick,
   GetReplaceMode,
-  ShowTranslation,
+  FinishTranslation,
+  SendTranslationDelta,
   TranslateText,
 }
 
@@ -35,11 +36,17 @@ type GetCurrentElementPickResponse = number | null;
 export type GetReplaceModePayload = Record<string, never>;
 type GetReplaceModeResponse = ReplaceMode;
 
-export interface ShowTranslationPayload {
-  translation: string | null;
+export interface FinishTranslationPayload {
   elementId: string;
+  error: string | null;
 }
-type ShowTranslationResponse = void;
+type FinishTranslationResponse = void;
+
+export interface SendTranslationDeltaPayload {
+  elementId: string;
+  delta: string;
+}
+type SendTranslationDeltaResponse = void;
 
 export interface TranslateTextPayload {
   text: string;
@@ -64,11 +71,13 @@ type ActionToPayloadMap<A extends Action> = A extends Action.Alert
             ? GetCurrentElementPickPayload
             : A extends Action.GetReplaceMode
               ? GetReplaceModePayload
-              : A extends Action.ShowTranslation
-                ? ShowTranslationPayload
-                : A extends Action.TranslateText
-                  ? TranslateTextPayload
-                  : never;
+              : A extends Action.FinishTranslation
+                ? FinishTranslationPayload
+                : A extends Action.SendTranslationDelta
+                  ? SendTranslationDeltaPayload
+                  : A extends Action.TranslateText
+                    ? TranslateTextPayload
+                    : never;
 
 type ActionToResponseMap<A extends Action> = A extends Action.Alert
   ? AlertResponse
@@ -84,11 +93,13 @@ type ActionToResponseMap<A extends Action> = A extends Action.Alert
             ? GetCurrentElementPickResponse
             : A extends Action.GetReplaceMode
               ? GetReplaceModeResponse
-              : A extends Action.ShowTranslation
-                ? ShowTranslationResponse
-                : A extends Action.TranslateText
-                  ? TranslateTextResponse
-                  : never;
+              : A extends Action.FinishTranslation
+                ? FinishTranslationResponse
+                : A extends Action.SendTranslationDelta
+                  ? SendTranslationDeltaResponse
+                  : A extends Action.TranslateText
+                    ? TranslateTextResponse
+                    : never;
 
 type PromiseOrValue<T> = T | Promise<T>;
 
@@ -182,3 +193,29 @@ export const generateId = () =>
 export const camelToDash = (str: string) => str.replace(/([A-Z]+)/g, '-$1').toLowerCase();
 
 export const objectKeys = Object.keys as <T extends string>(obj: Record<T, any>) => T[];
+
+export function createThrottledAccumulator(callback: (accumulated: string) => void, interval: number) {
+  let buffer = '';
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const flush = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (buffer.length > 0) {
+      const data = buffer;
+      buffer = '';
+      callback(data);
+    }
+  };
+
+  const push = (delta: string) => {
+    buffer += delta;
+    if (timer === null) {
+      timer = setTimeout(flush, interval);
+    }
+  };
+
+  return { push, flush };
+}

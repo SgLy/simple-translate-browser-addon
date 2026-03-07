@@ -1,6 +1,13 @@
 import OpenAI from 'openai';
 import type { ApiProfile, ReplaceMode, TranslateSettings, TranslateTextPayload } from './utils';
-import { Action, defaultGlobalSettings, defaultProfileStorage, onMessage, sendToTab } from './utils';
+import {
+  Action,
+  createThrottledAccumulator,
+  defaultGlobalSettings,
+  defaultProfileStorage,
+  onMessage,
+  sendToTab,
+} from './utils';
 
 let elementPickingTabId: number | null = null;
 
@@ -83,17 +90,25 @@ onMessage(Action.TranslateText, async (payload, sender) => {
       replaceMode,
     };
 
-    const missingFields = (['baseURL', 'apiKey', 'model', 'targetLang'] as const).filter(
-      key => !settings[key],
-    );
+    const missingFields = (['baseURL', 'apiKey', 'model', 'targetLang'] as const).filter(key => !settings[key]);
     if (missingFields.length > 0) {
       throw new Error(`Please set your ${missingFields.join(', ')} in the extension settings`);
     }
 
-    const translation = await translateText(payload, settings);
-    await sendToTab(tabId, Action.ShowTranslation, {
-      translation,
+    const throttled = createThrottledAccumulator(delta => {
+      sendToTab(tabId, Action.SendTranslationDelta, {
+        elementId: payload.elementId,
+        delta,
+      });
+    }, 500);
+
+    await translateText(payload, settings, delta => {
+      throttled.push(delta);
+    });
+    throttled.flush();
+    await sendToTab(tabId, Action.FinishTranslation, {
       elementId: payload.elementId,
+      error: null,
     });
   } catch (error) {
     const errMsg =
@@ -101,14 +116,18 @@ onMessage(Action.TranslateText, async (payload, sender) => {
     await sendToTab(tabId, Action.Alert, {
       text: `Error translating text: ${errMsg}`,
     });
-    await sendToTab(tabId, Action.ShowTranslation, {
-      translation: null,
+    await sendToTab(tabId, Action.FinishTranslation, {
+      error: errMsg,
       elementId: payload.elementId,
     });
   }
 });
 
-async function translateText(payload: TranslateTextPayload, settings: TranslateSettings) {
+async function translateText(
+  payload: TranslateTextPayload,
+  settings: TranslateSettings,
+  onDelta: (delta: string) => void,
+) {
   const client = new OpenAI({
     baseURL: settings.baseURL,
     apiKey: settings.apiKey,
@@ -135,10 +154,24 @@ async function translateText(payload: TranslateTextPayload, settings: TranslateS
     role: 'user',
     content: payload.text,
   });
-  const completion = await client.chat.completions.create({
+
+  type ConfigWithThinking = OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming & {
+    thinking: { type: 'disabled' | 'enabled' };
+  };
+  const config: ConfigWithThinking = {
     model: settings.model,
     messages,
-  });
+    stream: true,
+    thinking: { type: 'disabled' },
+  };
+  const stream = await client.chat.completions.create(
+    config as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+  );
 
-  return completion.choices[0].message.content;
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) {
+      onDelta(delta);
+    }
+  }
 }
