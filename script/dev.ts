@@ -1,6 +1,6 @@
 /// <reference types="node" />
 
-import webpack, { ProgressPlugin } from 'webpack';
+import { ProgressPlugin, rspack } from '@rspack/core';
 import { merge } from 'webpack-merge';
 import baseConfig from './base.config';
 import { importESM } from './import-esm';
@@ -10,17 +10,9 @@ const devConfig = merge(baseConfig('development'), {
   devtool: 'inline-source-map',
   plugins: [new ProgressPlugin()],
   watch: true,
-  cache: {
-    type: 'filesystem',
-    buildDependencies: {
-      config: [__dirname + '/'],
-    },
-    compression: false,
-    profile: true,
-  },
 });
 
-webpack(devConfig, (err, stats) => {
+rspack(devConfig, (err, stats) => {
   if (err || stats?.hasErrors()) {
     console.error(err);
   }

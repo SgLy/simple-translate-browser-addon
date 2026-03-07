@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { ProgressPlugin, webpack } from 'webpack';
+import { ProgressPlugin, rspack } from '@rspack/core';
 import { merge } from 'webpack-merge';
 import baseConfig from './base.config';
 import { importESM } from './import-esm';
@@ -13,7 +13,7 @@ const prodConfig = merge(baseConfig('production'), {
   plugins: [new ProgressPlugin()],
 });
 
-webpack(prodConfig, async (err, stats) => {
+rspack(prodConfig, async (err, stats) => {
   if (err || stats?.hasErrors()) {
     console.error(err);
   }
