@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import type { ReplaceMode, TranslateSettings, TranslateTextPayload } from './utils';
-import { Action, defaultTranslateSettings, objectKeys, onMessage, sendToTab } from './utils';
+import type { ApiProfile, ReplaceMode, TranslateSettings, TranslateTextPayload } from './utils';
+import { Action, defaultGlobalSettings, defaultProfileStorage, onMessage, sendToTab } from './utils';
 
 let elementPickingTabId: number | null = null;
 
@@ -50,7 +50,7 @@ onMessage(Action.GetCurrentElementPick, async () => {
   return elementPickingTabId;
 });
 onMessage(Action.GetReplaceMode, async () => {
-  const { replaceMode } = await browser.storage.local.get({ replaceMode: defaultTranslateSettings.replaceMode });
+  const { replaceMode } = await browser.storage.local.get({ replaceMode: defaultGlobalSettings.replaceMode });
   return replaceMode as ReplaceMode;
 });
 
@@ -58,16 +58,39 @@ onMessage(Action.TranslateText, async (payload, sender) => {
   if (sender.tab?.id === undefined) return;
   const tabId: number = sender.tab?.id;
   try {
-    const settings = await browser.storage.local.get(defaultTranslateSettings);
-
-    const invalidKeys = objectKeys(defaultTranslateSettings).filter(key => {
-      return !(typeof settings[key] === 'string' && settings[key] !== '');
+    const storage = await browser.storage.local.get({
+      ...defaultProfileStorage,
+      ...defaultGlobalSettings,
     });
-    if (invalidKeys.length > 0) {
-      throw new Error(`Please set your ${invalidKeys.join(', ')} in the extension settings`);
+    const profiles = storage.profiles as ApiProfile[];
+    const activeProfileId = storage.activeProfileId as string | null;
+    const targetLang = storage.targetLang as string;
+    const replaceMode = storage.replaceMode as ReplaceMode;
+
+    if (activeProfileId === null) {
+      throw new Error('No active API profile selected');
+    }
+    const profile = profiles.find(p => p.id === activeProfileId);
+    if (!profile) {
+      throw new Error(`Active profile "${activeProfileId}" not found`);
     }
 
-    const translation = await translateText(payload, settings as TranslateSettings);
+    const settings: TranslateSettings = {
+      baseURL: profile.baseURL,
+      apiKey: profile.apiKey,
+      model: profile.model,
+      targetLang,
+      replaceMode,
+    };
+
+    const missingFields = (['baseURL', 'apiKey', 'model', 'targetLang'] as const).filter(
+      key => !settings[key],
+    );
+    if (missingFields.length > 0) {
+      throw new Error(`Please set your ${missingFields.join(', ')} in the extension settings`);
+    }
+
+    const translation = await translateText(payload, settings);
     await sendToTab(tabId, Action.ShowTranslation, {
       translation,
       elementId: payload.elementId,

@@ -139,6 +139,33 @@ export const enum ReplaceMode {
   Replace = 'replace',
 }
 
+export interface ApiProfile {
+  id: string;
+  baseURL: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface ProfileStorage {
+  profiles: ApiProfile[];
+  activeProfileId: string | null;
+}
+
+export const defaultProfileStorage: ProfileStorage = {
+  profiles: [],
+  activeProfileId: null,
+};
+
+export interface GlobalSettings {
+  targetLang: string;
+  replaceMode: ReplaceMode;
+}
+
+export const defaultGlobalSettings: GlobalSettings = {
+  targetLang: '',
+  replaceMode: ReplaceMode.Append,
+};
+
 export interface TranslateSettings {
   baseURL: string;
   targetLang: string;
@@ -146,13 +173,6 @@ export interface TranslateSettings {
   model: string;
   replaceMode: ReplaceMode;
 }
-export const defaultTranslateSettings: TranslateSettings = {
-  baseURL: '',
-  targetLang: '',
-  apiKey: '',
-  model: '',
-  replaceMode: ReplaceMode.Append,
-};
 
 export const generateId = () =>
   Math.round(Math.random() * 0xffffffff)
