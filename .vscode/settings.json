@@ -1,10 +1,13 @@
 {
   "[typescript]": {
     "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": "explicit",
-      "source.fixAll.ts": "explicit",
-      "source.organizeImports": "explicit",
-    }
+  },
+  "[json]": {
+    "editor.formatOnSave": true,
+  },
+  "editor.codeActionsOnSave": {
+    "source.biome": "explicit",
+    "source.fixAll.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
   }
 }

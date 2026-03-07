@@ -3,7 +3,15 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/*.ts", "static/manifest.json", "static/popup.html", "biome.json", "config.json"]
+    "includes": [
+      "src/*.ts",
+      "script/*.ts",
+      "script/*.js",
+      "static/manifest.json",
+      "static/popup.html",
+      "biome.json",
+      "config.json"
+    ]
   },
   "formatter": {
     "enabled": true,

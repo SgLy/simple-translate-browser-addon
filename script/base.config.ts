@@ -1,8 +1,7 @@
-import childProcess from 'child_process';
-import path from 'path';
-
-import { CopyRspackPlugin, DefinePlugin } from '@rspack/core';
+import childProcess from 'node:child_process';
+import path from 'node:path';
 import type { Configuration } from '@rspack/core';
+import { CopyRspackPlugin, DefinePlugin } from '@rspack/core';
 
 const root = path.join(__dirname, '..');
 const commitHash = childProcess.execSync('git rev-parse --short HEAD').toString().trim();

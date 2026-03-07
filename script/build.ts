@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { ProgressPlugin, rspack } from '@rspack/core';
 import { merge } from 'webpack-merge';
 import baseConfig from './base.config';
