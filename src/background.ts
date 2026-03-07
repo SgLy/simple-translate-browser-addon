@@ -96,7 +96,7 @@ async function translateText(payload: TranslateTextPayload, settings: TranslateS
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
       role: 'system',
-      content: `Translate the given HTML segment from URL "${payload.url}" with title "${payload.title}" to language "${settings.targetLang}". You should only translate the text contents, and keep all attributes, code snippets or HTML specific syntax untouched. Do not output any other text except the translated text since the user may be a program.`,
+      content: `Translate the given HTML segment from URL "${payload.url}" with title "${payload.title}" to language "${settings.targetLang}". You should only translate the text contents, and keep all attributes, code snippets or HTML specific syntax untouched. Do not output any other text except the translated HTML segment since the user is a program.`,
     },
   ];
   if (Object.keys(payload.hint).length > 0) {
