@@ -1,4 +1,4 @@
-import { Action, ReplaceMode, generateId, onMessage, sendToRuntime } from './utils';
+import { Action, generateId, onMessage, ReplaceMode, sendToRuntime } from './utils';
 
 const overlayMargin = 8; // px
 const overlayElement = document.createElement('div');

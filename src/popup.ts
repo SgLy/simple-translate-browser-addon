@@ -1,5 +1,5 @@
 import type { ApiProfile, GlobalSettings, ProfileStorage } from './utils';
-import { Action, ReplaceMode, defaultGlobalSettings, defaultProfileStorage, sendToRuntime } from './utils';
+import { Action, defaultGlobalSettings, defaultProfileStorage, ReplaceMode, sendToRuntime } from './utils';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const status = (() => {
