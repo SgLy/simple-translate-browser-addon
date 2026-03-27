@@ -12,11 +12,13 @@ overlayElement.style.transition = 'background-color 0.1s ease-in-out';
 let overlayingElement: HTMLElement | null = null;
 let currentPickingElement: HTMLElement | null = null;
 const upcastElements: HTMLElement[] = [];
-document.body.appendChild(overlayElement);
+document.body.prepend(overlayElement);
+const userSelect = document.body.style.userSelect;
 
 let originalCursor: string | null = null;
 
 const enableElementPick = () => {
+  document.body.style.userSelect = 'none';
   document.addEventListener('click', handleElementClick, true);
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('keydown', handleKeyDown);
@@ -24,6 +26,7 @@ const enableElementPick = () => {
   return true;
 };
 const disableElementPick = () => {
+  document.body.style.userSelect = userSelect;
   document.removeEventListener('click', handleElementClick, true);
   document.removeEventListener('mousemove', handleMouseMove);
   document.removeEventListener('keydown', handleKeyDown);
@@ -65,6 +68,7 @@ async function handleKeyDown(e: KeyboardEvent) {
       }
       break;
     case 'w':
+    case 'W':
       if (currentPickingElement?.parentElement instanceof HTMLElement) {
         upcastElements.push(currentPickingElement);
         pickElement(currentPickingElement.parentElement);
@@ -73,6 +77,7 @@ async function handleKeyDown(e: KeyboardEvent) {
       }
       break;
     case 's':
+    case 'S':
       if (upcastElements.length > 0) {
         const lastElement = upcastElements.pop()!;
         pickElement(lastElement);
@@ -126,8 +131,8 @@ const streamBufferMap = new Map<string, string>();
 
 async function handleElementClick(e: MouseEvent) {
   if (!(e.target instanceof HTMLElement)) return;
-  if (!e.target.parentNode) return;
-  const element = e.target;
+  const element = currentPickingElement;
+  if (!element || !element.parentNode) return;
   e.preventDefault();
   e.stopPropagation();
 
