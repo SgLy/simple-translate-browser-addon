@@ -11,15 +11,13 @@ overlayElement.style.borderRadius = '4px';
 overlayElement.style.transition = 'background-color 0.1s ease-in-out';
 let overlayingElement: HTMLElement | null = null;
 let currentPickingElement: HTMLElement | null = null;
+let currentPickingElementCursor: string | null = null;
 const upcastElements: HTMLElement[] = [];
 document.body.prepend(overlayElement);
 const userSelect = document.body.style.userSelect;
 
-let originalCursor: string | null = null;
-
 const enableElementPick = () => {
-  document.body.style.userSelect = 'none';
-  document.addEventListener('click', handleElementClick, true);
+  document.addEventListener('click', handleElementClick, { capture: true });
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);
@@ -27,17 +25,13 @@ const enableElementPick = () => {
 };
 const disableElementPick = () => {
   document.body.style.userSelect = userSelect;
-  document.removeEventListener('click', handleElementClick, true);
+  document.removeEventListener('click', handleElementClick, { capture: true });
   document.removeEventListener('mousemove', handleMouseMove);
   document.removeEventListener('keydown', handleKeyDown);
   document.removeEventListener('keyup', handleKeyUp);
   overlayElement.hidden = true;
-  if (currentPickingElement !== null && originalCursor !== null) {
-    currentPickingElement.style.cursor = originalCursor;
-  }
-  currentPickingElement = null;
+  unpickCurrentElement();
   overlayingElement = null;
-  originalCursor = null;
   return true;
 };
 
@@ -109,12 +103,20 @@ function handleMouseMove(e: MouseEvent) {
   }
 }
 
-function pickElement(element: HTMLElement) {
-  if (currentPickingElement !== null && originalCursor !== null) {
-    currentPickingElement.style.cursor = originalCursor;
+function unpickCurrentElement() {
+  if (currentPickingElement !== null) {
+    if (currentPickingElementCursor !== null) {
+      currentPickingElement.style.cursor = currentPickingElementCursor;
+    }
   }
+  currentPickingElement = null;
+  currentPickingElementCursor = null;
+}
+
+function pickElement(element: HTMLElement) {
+  unpickCurrentElement();
   currentPickingElement = element;
-  originalCursor = element.style.cursor;
+  currentPickingElementCursor = element.style.cursor;
   element.style.cursor = 'crosshair';
   overlayElement.hidden = false;
   const rect = element.getBoundingClientRect();
@@ -134,13 +136,14 @@ async function handleElementClick(e: MouseEvent) {
   const element = currentPickingElement;
   if (!element || !element.parentNode) return;
   e.preventDefault();
+  e.stopImmediatePropagation();
   e.stopPropagation();
 
   const clonedElement = element.cloneNode(true) as HTMLElement;
   const hint = extractRuby(clonedElement);
-  const text = clonedElement.innerHTML;
-  if (text === '') return;
+  const { outer, inner } = extractHTML(clonedElement);
 
+  unpickCurrentElement();
   if (pickingMultipleElements) {
     pickedElements += 1;
   } else {
@@ -159,9 +162,24 @@ async function handleElementClick(e: MouseEvent) {
   })();
   elementMap.set(elementId, replaceTargetElement);
   opacityMap.set(elementId, replaceTargetElement.style.opacity);
-  replaceTargetElement.style.opacity = ((parseFloat(replaceTargetElement.style.opacity) || 1) * 0.3).toFixed(5);
+  const originalOpacity = parseFloat(replaceTargetElement.style.opacity) || 1;
+  replaceTargetElement.animate(
+    [
+      { opacity: originalOpacity * 0.3, offset: 0 },
+      { opacity: originalOpacity * 0.1, offset: 0.4 },
+      { opacity: originalOpacity * 0.3, offset: 0.8 },
+      { opacity: originalOpacity * 0.3, offset: 1 },
+    ],
+    {
+      duration: 1500,
+      iterations: Infinity,
+      direction: 'normal',
+      easing: 'ease-in-out',
+    },
+  );
   await sendToRuntime(Action.TranslateText, {
-    text,
+    outer,
+    inner,
     hint,
     elementId,
     url: document.location.href,
@@ -191,6 +209,15 @@ function extractRuby(e: HTMLElement): Record<string, string> {
   return Object.fromEntries(entries);
 }
 
+function extractHTML(e: HTMLElement): { outer: string; inner: string } {
+  const inner = e.innerHTML;
+  const fullOuter = e.outerHTML;
+  const innerPosition = fullOuter.indexOf(inner);
+  const before = fullOuter.slice(0, innerPosition);
+  const after = fullOuter.slice(innerPosition + inner.length);
+  const outer = before + after;
+  return { outer, inner };
+}
 /**
  * Find the last position in the HTML string that is safe to render via innerHTML.
  * Avoids cutting in the middle of an incomplete tag like `<a href="htt`.
@@ -206,20 +233,40 @@ function findSafeRenderPoint(html: string): number {
   return lastOpenBracket;
 }
 
-onMessage(Action.SendTranslationDelta, payload => {
+onMessage(Action.SendInnerTranslationDelta, async payload => {
   const element = elementMap.get(payload.elementId);
-  if (!element || !element.parentNode) return;
+  if (!element) return;
+  element.getAnimations().forEach(animation => {
+    animation.cancel();
+  });
+  element.animate(
+    [
+      { opacity: 0.3, offset: 0 },
+      { opacity: 0.1, offset: 0.5 },
+      { opacity: 0.3, offset: 1 },
+    ],
+    {
+      duration: 200,
+      iterations: 1,
+      direction: 'normal',
+      easing: 'ease-in-out',
+    },
+  );
   const buffer = (streamBufferMap.get(payload.elementId) ?? '') + payload.delta;
+  const newBuffer = buffer.slice(0, findSafeRenderPoint(buffer));
   streamBufferMap.set(payload.elementId, buffer);
-  element.innerHTML = buffer.slice(0, findSafeRenderPoint(buffer));
+  element.innerHTML = newBuffer;
 });
 
-onMessage(Action.FinishTranslation, payload => {
+onMessage(Action.FinishInnerTranslation, payload => {
   const element = elementMap.get(payload.elementId);
   elementMap.delete(payload.elementId);
   const buffer = streamBufferMap.get(payload.elementId);
   streamBufferMap.delete(payload.elementId);
   if (!element || !element.parentNode) return;
+  element.getAnimations().forEach(animation => {
+    animation.cancel();
+  });
   const originalOpacity = opacityMap.get(payload.elementId);
   opacityMap.delete(payload.elementId);
   if (originalOpacity !== undefined) {
@@ -233,6 +280,20 @@ onMessage(Action.FinishTranslation, payload => {
     element.innerHTML = buffer;
   }
   isPlaceholder.delete(element);
+});
+
+onMessage(Action.FinishOuterTranslation, async payload => {
+  const element = elementMap.get(payload.elementId);
+  if (!element) return;
+  const fragment = document.createRange().createContextualFragment(payload.html);
+  if (fragment.childNodes.length !== 1) return;
+  const newNode = fragment.firstChild as HTMLElement;
+  if (newNode === null || newNode === undefined) return;
+  const attributes = newNode.attributes || [];
+  for (let i = 0; i < attributes.length; ++i) {
+    const attr = attributes[i];
+    element.setAttribute(attr.name, attr.value);
+  }
 });
 
 onMessage(Action.Alert, payload => {

@@ -96,17 +96,28 @@ onMessage(Action.TranslateText, async (payload, sender) => {
     }
 
     const throttled = createThrottledAccumulator(delta => {
-      sendToTab(tabId, Action.SendTranslationDelta, {
+      sendToTab(tabId, Action.SendInnerTranslationDelta, {
         elementId: payload.elementId,
         delta,
       });
     }, 500);
 
-    await translateText(payload, settings, delta => {
-      throttled.push(delta);
-    });
+    await translateText(
+      payload,
+      settings,
+      delta => {
+        throttled.push(delta);
+      },
+      outer => {
+        sendToTab(tabId, Action.FinishOuterTranslation, {
+          elementId: payload.elementId,
+          html: outer,
+          error: null,
+        });
+      },
+    );
     throttled.flush();
-    await sendToTab(tabId, Action.FinishTranslation, {
+    await sendToTab(tabId, Action.FinishInnerTranslation, {
       elementId: payload.elementId,
       error: null,
     });
@@ -116,7 +127,7 @@ onMessage(Action.TranslateText, async (payload, sender) => {
     await sendToTab(tabId, Action.Alert, {
       text: `Error translating text: ${errMsg}`,
     });
-    await sendToTab(tabId, Action.FinishTranslation, {
+    await sendToTab(tabId, Action.FinishInnerTranslation, {
       error: errMsg,
       elementId: payload.elementId,
     });
@@ -126,7 +137,8 @@ onMessage(Action.TranslateText, async (payload, sender) => {
 async function translateText(
   payload: TranslateTextPayload,
   settings: TranslateSettings,
-  onDelta: (delta: string) => void,
+  onInnerDelta: (delta: string) => void,
+  onOuter: (outer: string) => void,
 ) {
   const client = new OpenAI({
     baseURL: settings.baseURL,
@@ -138,7 +150,7 @@ async function translateText(
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
       role: 'system',
-      content: `Translate the given HTML segment from URL "${payload.url}" with title "${payload.title}" to language "${settings.targetLang}". You should only translate the text contents, and keep all attributes, code snippets or HTML specific syntax untouched. Do not output any other text except the translated HTML segment since the user is a program.`,
+      content: `You are a professional translator. Translate the given HTML segment from URL "${payload.url}" with title "${payload.title}" to language "${settings.targetLang}". You should translate all text contents for displaying, and keep all functional attributes, code snippets or HTML specific syntax untouched. Do not output any other text except the translated HTML segment since the user is a program.`,
     },
   ];
   if (Object.keys(payload.hint).length > 0) {
@@ -150,28 +162,65 @@ async function translateText(
       content: `Here are some hints that may be helpful for translation:\n${hintsPair}`,
     });
   }
-  messages.push({
-    role: 'user',
-    content: payload.text,
-  });
 
-  type ConfigWithThinking = OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming & {
-    thinking: { type: 'disabled' | 'enabled' };
-  };
-  const config: ConfigWithThinking = {
-    model: settings.model,
-    messages,
-    stream: true,
-    thinking: { type: 'disabled' },
-  };
-  const stream = await client.chat.completions.create(
-    config as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
-  );
+  const inner = (async () => {
+    if (payload.inner === '') return;
+    const innerMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      ...messages,
+      {
+        role: 'user',
+        content: payload.inner,
+      },
+    ];
 
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta?.content;
-    if (delta) {
-      onDelta(delta);
+    type ConfigWithThinking = OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming & {
+      thinking: { type: 'disabled' | 'enabled' };
+    };
+    const config: ConfigWithThinking = {
+      model: settings.model,
+      messages: innerMessages,
+      stream: true,
+      thinking: { type: 'disabled' },
+    };
+    const stream = await client.chat.completions.create(
+      config as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+    );
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        onInnerDelta(delta);
+      }
     }
-  }
+  })();
+
+  const outer = (async () => {
+    const innerMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      ...messages,
+      {
+        role: 'system',
+        content: `Additionally, set correct lang="lang_CODE" for the outmost element.`,
+      },
+      {
+        role: 'user',
+        content: payload.outer,
+      },
+    ];
+
+    type ConfigWithThinking = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
+      thinking: { type: 'disabled' | 'enabled' };
+    };
+    const config: ConfigWithThinking = {
+      model: settings.model,
+      messages: innerMessages,
+      thinking: { type: 'disabled' },
+    };
+    const stream = await client.chat.completions.create(
+      config as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+    );
+
+    onOuter(stream.choices[0]?.message?.content ?? '');
+  })();
+
+  await Promise.all([inner, outer]);
 }

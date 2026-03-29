@@ -3,7 +3,7 @@
     "alwaysStrict": true,
     "baseUrl": ".",
     "esModuleInterop": true,
-    "lib": ["ES2020", "DOM"],
+    "lib": ["ES2024", "DOM"],
     "module": "CommonJS",
     "moduleResolution": "node",
     "newLine": "LF",

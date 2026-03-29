@@ -6,8 +6,9 @@ export const enum Action {
   DisableElementPick,
   GetCurrentElementPick,
   GetReplaceMode,
-  FinishTranslation,
-  SendTranslationDelta,
+  FinishInnerTranslation,
+  SendInnerTranslationDelta,
+  FinishOuterTranslation,
   TranslateText,
 }
 
@@ -36,20 +37,28 @@ type GetCurrentElementPickResponse = number | null;
 export type GetReplaceModePayload = Record<string, never>;
 type GetReplaceModeResponse = ReplaceMode;
 
-export interface FinishTranslationPayload {
+export interface FinishInnerTranslationPayload {
   elementId: string;
   error: string | null;
 }
-type FinishTranslationResponse = void;
+type FinishInnerTranslationResponse = void;
 
-export interface SendTranslationDeltaPayload {
+export interface FinishOuterTranslationPayload {
+  html: string;
+  elementId: string;
+  error: string | null;
+}
+type FinishOuterTranslationResponse = void;
+
+export interface SendInnerTranslationDeltaPayload {
   elementId: string;
   delta: string;
 }
-type SendTranslationDeltaResponse = void;
+type SendInnerTranslationDeltaResponse = void;
 
 export interface TranslateTextPayload {
-  text: string;
+  inner: string;
+  outer: string;
   hint: Record<string, string>;
   elementId: string;
   url: string;
@@ -71,13 +80,15 @@ type ActionToPayloadMap<A extends Action> = A extends Action.Alert
             ? GetCurrentElementPickPayload
             : A extends Action.GetReplaceMode
               ? GetReplaceModePayload
-              : A extends Action.FinishTranslation
-                ? FinishTranslationPayload
-                : A extends Action.SendTranslationDelta
-                  ? SendTranslationDeltaPayload
-                  : A extends Action.TranslateText
-                    ? TranslateTextPayload
-                    : never;
+              : A extends Action.FinishInnerTranslation
+                ? FinishInnerTranslationPayload
+                : A extends Action.FinishOuterTranslation
+                  ? FinishOuterTranslationPayload
+                  : A extends Action.SendInnerTranslationDelta
+                    ? SendInnerTranslationDeltaPayload
+                    : A extends Action.TranslateText
+                      ? TranslateTextPayload
+                      : never;
 
 type ActionToResponseMap<A extends Action> = A extends Action.Alert
   ? AlertResponse
@@ -93,13 +104,15 @@ type ActionToResponseMap<A extends Action> = A extends Action.Alert
             ? GetCurrentElementPickResponse
             : A extends Action.GetReplaceMode
               ? GetReplaceModeResponse
-              : A extends Action.FinishTranslation
-                ? FinishTranslationResponse
-                : A extends Action.SendTranslationDelta
-                  ? SendTranslationDeltaResponse
-                  : A extends Action.TranslateText
-                    ? TranslateTextResponse
-                    : never;
+              : A extends Action.FinishInnerTranslation
+                ? FinishInnerTranslationResponse
+                : A extends Action.FinishOuterTranslation
+                  ? FinishOuterTranslationResponse
+                  : A extends Action.SendInnerTranslationDelta
+                    ? SendInnerTranslationDeltaResponse
+                    : A extends Action.TranslateText
+                      ? TranslateTextResponse
+                      : never;
 
 type PromiseOrValue<T> = T | Promise<T>;
 
@@ -128,21 +141,21 @@ export const onMessage = <A extends Action>(
 };
 
 browser.runtime.onMessage.addListener((message, sender) => {
-  return new Promise(resolve => {
-    const action = message.action as Action;
-    const cb = listenerMap.get(action);
-    if (typeof cb === 'function') {
-      try {
-        const result = cb(message.payload, sender);
-        resolve(result);
-      } catch (error) {
-        console.error('Error in onMessage:', error);
-        resolve(null);
-      }
-    } else {
+  const { promise, resolve } = Promise.withResolvers<any>();
+  const action = message.action as Action;
+  const cb = listenerMap.get(action);
+  if (typeof cb === 'function') {
+    try {
+      const result = cb(message.payload, sender);
+      resolve(result);
+    } catch (error) {
+      console.error('Error in onMessage:', error);
       resolve(null);
     }
-  });
+  } else {
+    resolve(null);
+  }
+  return promise;
 });
 
 export const enum ReplaceMode {
@@ -218,4 +231,21 @@ export function createThrottledAccumulator(callback: (accumulated: string) => vo
   };
 
   return { push, flush };
+}
+export type ThrottledAccumulator = ReturnType<typeof createThrottledAccumulator>;
+
+export function sleep(ms: number) {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(() => resolve(), ms);
+  return promise;
+}
+
+export function raf() {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => resolve());
+  } else {
+    setTimeout(() => resolve(), 16);
+  }
+  return promise;
 }
