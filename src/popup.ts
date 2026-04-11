@@ -1,5 +1,13 @@
-import type { ApiProfile, GlobalSettings, ProfileStorage } from './utils';
-import { Action, defaultGlobalSettings, defaultProfileStorage, ReplaceMode, sendToRuntime } from './utils';
+import stringifyPrettyCompact from 'json-stringify-pretty-compact';
+import type { ApiProfile, CustomArgs, GlobalSettings, ProfileStorage } from './utils';
+import {
+  Action,
+  defaultGlobalSettings,
+  defaultProfileStorage,
+  normalizeCustomArgs,
+  ReplaceMode,
+  sendToRuntime,
+} from './utils';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const status = (() => {
@@ -16,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const baseUrlInput = document.getElementById('base-url') as HTMLInputElement | null;
   const apiKeyInput = document.getElementById('api-key') as HTMLInputElement | null;
   const modelInput = document.getElementById('model') as HTMLInputElement | null;
+  const customArgsInput = document.getElementById('custom-args') as HTMLTextAreaElement | null;
   const targetLangInput = document.getElementById('target-lang') as HTMLInputElement | null;
   const replaceModeInput = document.getElementById('replace-mode') as HTMLInputElement | null;
 
@@ -25,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     !baseUrlInput ||
     !apiKeyInput ||
     !modelInput ||
+    !customArgsInput ||
     !targetLangInput ||
     !replaceModeInput
   ) {
@@ -60,10 +70,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     await browser.storage.local.set(globalSettings);
   }
 
+  function formatCustomArgs(customArgs: unknown) {
+    return stringifyPrettyCompact(normalizeCustomArgs(customArgs), {
+      indent: 2,
+      maxLength: 35,
+    });
+  }
+
   function setApiFieldsDisabled(disabled: boolean) {
     baseUrlInput!.disabled = disabled;
     apiKeyInput!.disabled = disabled;
     modelInput!.disabled = disabled;
+    customArgsInput!.disabled = disabled;
   }
 
   function fillApiFields(profile: ApiProfile | undefined) {
@@ -71,11 +89,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       baseUrlInput!.value = profile.baseURL;
       apiKeyInput!.value = profile.apiKey;
       modelInput!.value = profile.model;
+      customArgsInput!.value = formatCustomArgs(profile.customArgs);
       setApiFieldsDisabled(false);
     } else {
       baseUrlInput!.value = '';
       apiKeyInput!.value = '';
       modelInput!.value = '';
+      customArgsInput!.value = '';
       setApiFieldsDisabled(true);
     }
   }
@@ -151,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         status.className = 'error';
         return;
       }
-      const newProfile: ApiProfile = { id: trimmedId, baseURL: '', apiKey: '', model: '' };
+      const newProfile: ApiProfile = { id: trimmedId, baseURL: '', apiKey: '', model: '', customArgs: {} };
       profiles.push(newProfile);
       activeProfileId = trimmedId;
       await saveProfiles();
@@ -177,7 +197,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- API field change handlers ---
 
-  const apiFieldMap: [HTMLInputElement, keyof Omit<ApiProfile, 'id'>][] = [
+  type ApiTextFieldKey = 'baseURL' | 'apiKey' | 'model';
+
+  const apiFieldMap: [HTMLInputElement, ApiTextFieldKey][] = [
     [baseUrlInput, 'baseURL'],
     [apiKeyInput, 'apiKey'],
     [modelInput, 'model'],
@@ -193,6 +215,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       status.className = 'success';
     });
   }
+
+  customArgsInput.addEventListener('change', async () => {
+    const profile = getActiveProfile();
+    if (!profile) return;
+
+    const rawValue = customArgsInput.value.trim();
+    if (rawValue === '') {
+      profile.customArgs = {};
+      customArgsInput.value = formatCustomArgs(profile.customArgs);
+      await saveProfiles();
+      status.innerText = 'Settings saved: customArgs';
+      status.className = 'success';
+      return;
+    }
+
+    let parsedValue: unknown;
+    try {
+      parsedValue = JSON.parse(rawValue);
+    } catch {
+      status.innerText = 'Error: customArgs must be valid JSON';
+      status.className = 'error';
+      return;
+    }
+
+    if (parsedValue === null || Array.isArray(parsedValue) || typeof parsedValue !== 'object') {
+      status.innerText = 'Error: customArgs must be a JSON object';
+      status.className = 'error';
+      return;
+    }
+
+    profile.customArgs = normalizeCustomArgs(parsedValue) as CustomArgs;
+    customArgsInput.value = formatCustomArgs(profile.customArgs);
+    await saveProfiles();
+    status.innerText = 'Settings saved: customArgs';
+    status.className = 'success';
+  });
 
   // --- Global settings change handlers ---
 

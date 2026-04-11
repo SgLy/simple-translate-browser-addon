@@ -5,6 +5,7 @@ import {
   createThrottledAccumulator,
   defaultGlobalSettings,
   defaultProfileStorage,
+  normalizeCustomArgs,
   onMessage,
   sendToTab,
 } from './utils';
@@ -88,6 +89,7 @@ onMessage(Action.TranslateText, async (payload, sender) => {
       model: profile.model,
       targetLang,
       replaceMode,
+      customArgs: normalizeCustomArgs(profile.customArgs),
     };
 
     const missingFields = (['baseURL', 'apiKey', 'model', 'targetLang'] as const).filter(key => !settings[key]);
@@ -173,24 +175,35 @@ async function translateText(
       },
     ];
 
-    type ConfigWithThinking = OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming & {
-      thinking: { type: 'disabled' | 'enabled' };
-    };
-    const config: ConfigWithThinking = {
-      model: settings.model,
-      messages: innerMessages,
-      stream: true,
-      thinking: { type: 'disabled' },
-    };
-    const stream = await client.chat.completions.create(
-      config as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+    const config: Record<string, unknown> = Object.assign(
+      {
+        model: settings.model,
+        messages: innerMessages,
+        stream: true,
+      } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+      settings.customArgs,
     );
 
-    for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content;
-      if (delta) {
-        onInnerDelta(delta);
+    if (config.stream === true) {
+      const stream = await client.chat.completions.create(
+        config as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+      );
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content;
+        if (delta) {
+          onInnerDelta(delta);
+        }
       }
+      return;
+    }
+
+    const completion = await client.chat.completions.create(
+      config as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+    );
+    const content = completion.choices[0]?.message?.content;
+    if (content) {
+      onInnerDelta(content);
     }
   })();
 
@@ -207,19 +220,33 @@ async function translateText(
       },
     ];
 
-    type ConfigWithThinking = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
-      thinking: { type: 'disabled' | 'enabled' };
-    };
-    const config: ConfigWithThinking = {
-      model: settings.model,
-      messages: innerMessages,
-      thinking: { type: 'disabled' },
-    };
-    const stream = await client.chat.completions.create(
-      config as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+    const config: Record<string, unknown> = Object.assign(
+      {
+        model: settings.model,
+        messages: innerMessages,
+      } satisfies OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+      settings.customArgs,
     );
 
-    onOuter(stream.choices[0]?.message?.content ?? '');
+    if (config.stream === true) {
+      const stream = await client.chat.completions.create(
+        config as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+      );
+      let html = '';
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content;
+        if (delta) {
+          html += delta;
+        }
+      }
+      onOuter(html);
+      return;
+    }
+
+    const completion = await client.chat.completions.create(
+      config as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+    );
+    onOuter(completion.choices[0]?.message?.content ?? '');
   })();
 
   await Promise.all([inner, outer]);

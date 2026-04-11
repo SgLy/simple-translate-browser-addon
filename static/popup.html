@@ -48,16 +48,16 @@
         margin: 0;
         font-family: 'Roboto', sans-serif;
         background-color: var(--mdc-theme-background);
-        min-width: 400px;
+        width: 440px;
         color: var(--text-color);
       }
 
       .container {
         background-color: var(--mdc-theme-surface);
-        padding: 24px;
+        padding: 18px 20px;
         border-radius: 8px;
         box-shadow: var(--surface-elevation);
-        max-width: 500px;
+        box-sizing: border-box;
       }
 
       /* Profile tabs */
@@ -65,7 +65,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         align-items: center;
       }
 
@@ -150,7 +150,7 @@
         color: var(--text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin: 16px 0 12px 0;
+        margin: 14px 0 8px 0;
       }
 
       .section-title:first-of-type {
@@ -160,22 +160,23 @@
       .section-divider {
         border: none;
         border-top: 1px solid var(--divider-color);
-        margin: 20px 0 4px 0;
+        margin: 14px 0 2px 0;
       }
 
       .settings-group {
-        margin-bottom: 20px;
+        margin-bottom: 14px;
         display: flex;
-        gap: 12px;
+        gap: 10px;
         align-items: center;
       }
 
       label {
-        flex: 0 0 100px;
+        flex: 0 0 92px;
         font-size: 0.875rem;
       }
 
-      input[type='text'] {
+      input[type='text'],
+      textarea {
         flex: 1;
         padding: 12px;
         border: 1px solid var(--input-border);
@@ -186,22 +187,42 @@
         color: inherit;
       }
 
-      input[type='text']:focus {
+      textarea {
+        min-height: 56px;
+        max-height: 120px;
+        resize: vertical;
+        font-family: monospace;
+        font-size: 0.875rem;
+        line-height: 1.35;
+        overflow: auto;
+      }
+
+      input[type='text']:focus,
+      textarea:focus {
         outline: none;
         border-color: var(--mdc-theme-primary);
         box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.3);
         background-color: var(--input-bg);
       }
 
-      input[type='text']:disabled {
+      input[type='text']:disabled,
+      textarea:disabled {
         opacity: 0.4;
         cursor: not-allowed;
+      }
+
+      .settings-group.multiline {
+        align-items: flex-start;
+      }
+
+      .settings-group.multiline label {
+        padding-top: 10px;
       }
 
       .button-group {
         display: flex;
         gap: 12px;
-        margin-top: 24px;
+        margin-top: 18px;
       }
 
       button#translate {
@@ -251,8 +272,8 @@
       }
 
       #status {
-        margin-top: 16px;
-        padding: 12px;
+        margin-top: 12px;
+        padding: 10px;
         border-radius: 4px;
         text-align: center;
         font-size: 0.875rem;
@@ -290,6 +311,15 @@
         <div class="settings-group">
           <label for="model">Model</label>
           <input type="text" id="model" placeholder="Enter model name" />
+        </div>
+
+        <div class="settings-group multiline">
+          <label for="custom-args">Custom Args</label>
+          <textarea
+            id="custom-args"
+            placeholder="e.g. {&quot;temperature&quot;: 0.7}"
+            spellcheck="false"
+          ></textarea>
         </div>
       </div>
 

@@ -163,11 +163,14 @@ export const enum ReplaceMode {
   Replace = 'replace',
 }
 
+export type CustomArgs = Record<string, unknown>;
+
 export interface ApiProfile {
   id: string;
   baseURL: string;
   apiKey: string;
   model: string;
+  customArgs?: CustomArgs;
 }
 
 export interface ProfileStorage {
@@ -196,6 +199,7 @@ export interface TranslateSettings {
   apiKey: string;
   model: string;
   replaceMode: ReplaceMode;
+  customArgs: CustomArgs;
 }
 
 export const generateId = () =>
@@ -206,6 +210,13 @@ export const generateId = () =>
 export const camelToDash = (str: string) => str.replace(/([A-Z]+)/g, '-$1').toLowerCase();
 
 export const objectKeys = Object.keys as <T extends string>(obj: Record<T, any>) => T[];
+
+export function normalizeCustomArgs(value: unknown): CustomArgs {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as CustomArgs;
+  }
+  return {};
+}
 
 export function createThrottledAccumulator(callback: (accumulated: string) => void, interval: number) {
   let buffer = '';

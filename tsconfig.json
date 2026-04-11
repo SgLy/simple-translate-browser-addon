@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
     "alwaysStrict": true,
-    "baseUrl": ".",
     "esModuleInterop": true,
     "lib": ["ES2024", "DOM"],
     "module": "CommonJS",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "newLine": "LF",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
+    "types": ["firefox-webext-browser"],
     "resolveJsonModule": true,
     "sourceMap": true,
     "strict": true,
