@@ -163,6 +163,7 @@ async function handleElementClick(e: MouseEvent) {
   elementMap.set(elementId, replaceTargetElement);
   opacityMap.set(elementId, replaceTargetElement.style.opacity);
   const originalOpacity = parseFloat(replaceTargetElement.style.opacity) || 1;
+  replaceTargetElement.style.opacity = (originalOpacity * 0.3).toString();
   replaceTargetElement.animate(
     [
       { opacity: originalOpacity * 0.3, offset: 0 },
@@ -239,11 +240,12 @@ onMessage(Action.SendInnerTranslationDelta, async payload => {
   element.getAnimations().forEach(animation => {
     animation.cancel();
   });
+  const originalOpacity = parseFloat(opacityMap.get(payload.elementId) || '1');
   element.animate(
     [
-      { opacity: 0.3, offset: 0 },
-      { opacity: 0.1, offset: 0.5 },
-      { opacity: 0.3, offset: 1 },
+      { opacity: originalOpacity * 0.3, offset: 0 },
+      { opacity: originalOpacity * 0.1, offset: 0.5 },
+      { opacity: originalOpacity * 0.3, offset: 1 },
     ],
     {
       duration: 200,
