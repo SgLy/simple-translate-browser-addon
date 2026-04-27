@@ -260,3 +260,58 @@ export function raf() {
   }
   return promise;
 }
+
+/**
+ * Convert a baseURL (e.g., "https://api.openai.com/v1") to a host permission
+ * pattern (e.g., "https://api.openai.com/*") for the permissions API.
+ * Returns null if the URL is invalid or uses a non-http(s) scheme.
+ */
+export function baseURLToOriginPattern(baseURL: string): string | null {
+  try {
+    const url = new URL(baseURL);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    return `${url.origin}/*`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if the extension currently has host permission for the given origin pattern.
+ */
+export async function hasOriginPermission(originPattern: string): Promise<boolean> {
+  try {
+    return await browser.permissions.contains({ origins: [originPattern] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Request host permission for the given origin pattern.
+ * Must be called from a user gesture context (e.g., popup click handler).
+ * Returns true if the permission was granted, false otherwise.
+ */
+export async function requestOriginPermission(originPattern: string): Promise<boolean> {
+  try {
+    return await browser.permissions.request({ origins: [originPattern] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ensure the extension has host permission for the given baseURL's origin.
+ * If the permission is not already granted, requests it from the user.
+ * Must be called from a user gesture context (e.g., popup click handler).
+ * Returns true if the permission is already granted or was just granted,
+ * false if the URL is invalid or the user denied the permission.
+ */
+export async function ensureOriginPermission(baseURL: string): Promise<boolean> {
+  const pattern = baseURLToOriginPattern(baseURL);
+  if (!pattern) return false;
+  if (await hasOriginPermission(pattern)) return true;
+  return requestOriginPermission(pattern);
+}

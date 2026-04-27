@@ -2,15 +2,42 @@ import OpenAI from 'openai';
 import type { ApiProfile, ReplaceMode, TranslateSettings, TranslateTextPayload } from './utils';
 import {
   Action,
+  baseURLToOriginPattern,
   createThrottledAccumulator,
   defaultGlobalSettings,
   defaultProfileStorage,
+  hasOriginPermission,
   normalizeCustomArgs,
   onMessage,
   sendToTab,
 } from './utils';
 
 let elementPickingTabId: number | null = null;
+const injectedTabs = new Set<number>();
+
+// Clean up when a tab is closed or navigated (content script is destroyed)
+browser.tabs.onRemoved.addListener(tabId => {
+  injectedTabs.delete(tabId);
+});
+browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'loading') {
+    injectedTabs.delete(tabId);
+  }
+});
+
+/**
+ * Inject the content script into the given tab if not already injected.
+ * Uses browser.tabs.executeScript (MV2) which works with activeTab permission.
+ */
+async function injectContentScript(tabId: number): Promise<void> {
+  if (injectedTabs.has(tabId)) return;
+  try {
+    await browser.tabs.executeScript(tabId, { file: 'content-script.js' });
+    injectedTabs.add(tabId);
+  } catch {
+    // Tab may not support content scripts (e.g. about: pages)
+  }
+}
 
 const updateIcon = () => {
   const icons = {
@@ -33,6 +60,8 @@ updateIcon();
 
 onMessage(Action.RequestEnableElementPick, async payload => {
   if (elementPickingTabId === payload.tabId) return true;
+  // Inject content script before communicating with it
+  await injectContentScript(payload.tabId);
   const result = await sendToTab(payload.tabId, Action.EnableElementPick, {});
   if (result) {
     if (elementPickingTabId !== null) {
@@ -142,6 +171,14 @@ async function translateText(
   onInnerDelta: (delta: string) => void,
   onOuter: (outer: string) => void,
 ) {
+  // Check if we have host permission for the API endpoint
+  const originPattern = baseURLToOriginPattern(settings.baseURL);
+  if (originPattern && !(await hasOriginPermission(originPattern))) {
+    throw new Error(
+      `No permission to access "${new URL(settings.baseURL).origin}". Please open the extension popup and click the translate button to grant the permission.`,
+    );
+  }
+
   const client = new OpenAI({
     baseURL: settings.baseURL,
     apiKey: settings.apiKey,

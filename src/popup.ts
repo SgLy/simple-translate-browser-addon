@@ -4,6 +4,7 @@ import {
   Action,
   defaultGlobalSettings,
   defaultProfileStorage,
+  ensureOriginPermission,
   normalizeCustomArgs,
   ReplaceMode,
   sendToRuntime,
@@ -273,6 +274,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   let elementPickingNow = false;
   translateButton.addEventListener('click', async () => {
     if (!elementPickingNow) {
+      // Ensure we have host permission for the active profile's API endpoint
+      const profile = getActiveProfile();
+      if (profile && !(await ensureOriginPermission(profile.baseURL))) {
+        status.innerText = 'Permission to access the API endpoint was not granted. Translation may fail.';
+        status.className = 'error';
+        return;
+      }
       const activeTab = await browser.tabs.query({ active: true, currentWindow: true });
       if (activeTab.length !== 1) return;
       const tabId = activeTab[0].id;
