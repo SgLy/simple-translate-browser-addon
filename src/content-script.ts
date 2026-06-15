@@ -139,11 +139,12 @@ async function handleElementClick(e: MouseEvent) {
   e.stopImmediatePropagation();
   e.stopPropagation();
 
+  unpickCurrentElement();
+
   const clonedElement = element.cloneNode(true) as HTMLElement;
   const hint = extractRuby(clonedElement);
   const { outer, inner } = extractHTML(clonedElement);
 
-  unpickCurrentElement();
   if (pickingMultipleElements) {
     pickedElements += 1;
   } else {
